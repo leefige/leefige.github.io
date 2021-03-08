@@ -242,13 +242,6 @@
   </url>
   
   <url>
-    <loc>https://leefige.github.io/tags/%E7%90%86%E8%AE%BA/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://leefige.github.io/tags/%E5%A4%96%E8%AF%AD/</loc>
     <lastmod>2021-03-08</lastmod>
     <changefreq>daily</changefreq>
@@ -264,6 +257,48 @@
   
   <url>
     <loc>https://leefige.github.io/tags/%E9%82%AE%E4%BB%B6/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E7%90%86%E8%AE%BA/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/CV/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E6%95%B0%E5%AD%A6/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E5%8D%B7%E7%A7%AF/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E6%B3%95%E8%AF%AD/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E5%85%B6%E4%BB%96/</loc>
     <lastmod>2021-03-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -306,41 +341,6 @@
   
   <url>
     <loc>https://leefige.github.io/tags/%E6%B5%81%E5%AA%92%E4%BD%93/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://leefige.github.io/tags/CV/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://leefige.github.io/tags/%E6%95%B0%E5%AD%A6/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://leefige.github.io/tags/%E5%8D%B7%E7%A7%AF/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://leefige.github.io/tags/%E6%B3%95%E8%AF%AD/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://leefige.github.io/tags/%E5%85%B6%E4%BB%96/</loc>
     <lastmod>2021-03-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -398,13 +398,6 @@
   </url>
   
   <url>
-    <loc>https://leefige.github.io/categories/web/</loc>
-    <lastmod>2021-03-08</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://leefige.github.io/categories/CV/</loc>
     <lastmod>2021-03-08</lastmod>
     <changefreq>daily</changefreq>
@@ -420,6 +413,13 @@
   
   <url>
     <loc>https://leefige.github.io/categories/%E5%85%B6%E4%BB%96/</loc>
+    <lastmod>2021-03-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/categories/web/</loc>
     <lastmod>2021-03-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
