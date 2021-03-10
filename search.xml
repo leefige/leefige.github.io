@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>[CMU OS lab] P0: traceback - x86调用栈</title>
+    <url>/2020/01/26/CMU-OS-lab-P0-traceback-x86%E8%B0%83%E7%94%A8%E6%A0%88/</url>
+    <content><![CDATA[<p>先占坑，之后补完。</p>
+]]></content>
+      <categories>
+        <category>系统</category>
+      </categories>
+      <tags>
+        <tag>OS</tag>
+        <tag>System</tag>
+        <tag>x86</tag>
+        <tag>CMU</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>[CMU OS lab] P1 (part 1): x86硬件</title>
     <url>/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/</url>
     <content><![CDATA[<p>P1的主要内容是写一个以核心态 Privilege Level 0 直接运行在 x86 硬件上的游戏 Sokoban (推箱子)。同样，出于学术规范考虑，本文不会透露项目的全部代码和 handout ，但可能会在必要时节选少量代码片段。代码片段版权所有为CMU 15-410/605 OS 课程。另外也可能节选少量清华 OS 课程代码片段，版权所有为清华大学计算机系 OS 课程。</p>
@@ -74,26 +89,6 @@
       </tags>
   </entry>
   <entry>
-    <title>[CMU OS lab] P0: traceback - x86调用栈</title>
-    <url>/2020/01/26/CMU-OS-lab-P0-traceback-x86%E8%B0%83%E7%94%A8%E6%A0%88/</url>
-    <content><![CDATA[<p>先占坑，之后补完。</p>
-]]></content>
-      <categories>
-        <category>系统</category>
-      </categories>
-      <tags>
-        <tag>OS</tag>
-        <tag>System</tag>
-        <tag>x86</tag>
-        <tag>CMU</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Golang创建定时程序</title>
-    <url>/2021/03/10/Golang%E5%88%9B%E5%BB%BA%E5%AE%9A%E6%97%B6%E7%A8%8B%E5%BA%8F/</url>
-    <content><![CDATA[]]></content>
-  </entry>
-  <entry>
     <title>KaTex中的多行等式</title>
     <url>/2019/03/11/KaTex%E4%B8%AD%E7%9A%84%E5%A4%9A%E8%A1%8C%E7%AD%89%E5%BC%8F/</url>
     <content><![CDATA[<p>Traceback (most recent call last):<br>  File “/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/“<br>Error: no idea of using KaTex for math formula</p>
@@ -122,6 +117,11 @@ e&=f
         <tag>LaTeX</tag>
         <tag>KaTeX</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>Golang创建定时程序</title>
+    <url>/2021/03/10/Golang%E5%88%9B%E5%BB%BA%E5%AE%9A%E6%97%B6%E7%A8%8B%E5%BA%8F/</url>
+    <content><![CDATA[]]></content>
   </entry>
   <entry>
     <title>人类心智和计算机发展简史：《人类的终极命运》读书笔记</title>
