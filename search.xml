@@ -713,4 +713,46 @@ P\{Hash overflows\}&=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq \sum_{j=1}^{M}P\{b
         <category>其他</category>
       </categories>
   </entry>
+  <entry>
+    <title>Linux安装gmpy2</title>
+    <url>/2021/03/11/%E5%AE%89%E8%A3%85gmpy2/</url>
+    <content><![CDATA[<p>今天下午花了点时间配环境，主要困难是安装Python的gmpy2包。这是一个多精度浮点数快速计算库，因为依赖很多，所以在Linux上源码编译安装比较麻烦，而在Windows上则比较简单，直接下载预编译的wheel即可。本文参考了一篇<a href="https://www.cnblogs.com/pcat/p/5746821.html">网络文章</a>，一些细节有所不同。</p>
+<p>本文基于的环境是64位的Ubuntu 20.04 LTS，其他版本Linux可能会有出入。一些遇到”permission denied”的操作（如<code>make install</code>），请更换安装目录，或用<code>sudo</code>。</p>
+<p>另外对于多核的机器，可以用类似<code>make -j4</code>的命令并行编译加快速度。</p>
+<span id="more"></span>
+<h3 id="确定依赖库的安装位置"><a href="#确定依赖库的安装位置" class="headerlink" title="确定依赖库的安装位置"></a>确定依赖库的安装位置</h3><p>编译gmpy2需要许多依赖，但是因为以静态库方式编译，所以这些依赖可以不安装在系统库目录里，随后也可以删除。因此可以自行确定方便的目录。本文中，库的安装目录为<code>$HOME/static</code>，如果需要，记得更换为读者自己的目录。</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ mkdir <span class="variable">$HOME</span>/static</span><br></pre></td></tr></table></figure>
+<h3 id="安装m4依赖"><a href="#安装m4依赖" class="headerlink" title="安装m4依赖"></a>安装m4依赖</h3><p>这是<a href="https://www.gnu.org/software/m4/m4.html">官方网站</a>.</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ wget https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.xz</span><br><span class="line">$ tar Jxf m4-1.4.18.tar.xz</span><br><span class="line">$ <span class="built_in">cd</span> m4-1.4.18</span><br><span class="line">$ ./configure -prefix=<span class="variable">$HOME</span>/static</span><br><span class="line">$ make &amp;&amp; make check &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+<h4 id="可能出现的bug"><a href="#可能出现的bug" class="headerlink" title="可能出现的bug"></a>可能出现的bug</h4><p>我在编译m4时出现了类似如下bug：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">freadahead.c:91:3: error: #error &quot;Please port gnulib freadahead.c to your platform! Look at the definition of fflush, fread, ungetc on your system, then report this to bug-gnulib.&quot;</span><br><span class="line">   91 |  #error &quot;Please port gnulib freadahead.c to your platform! Look at the definition of fflush, fread, ungetc on your system, then report this to bug-gnulib.&quot;</span><br><span class="line">      |   ^~~~~</span><br></pre></td></tr></table></figure>
+<p>经过查询相关资料，根据<a href="https://blog.csdn.net/Jun626/article/details/104870430">这篇文章</a>提供的方案解决问题。只需在m4源码目录（在这一目录下存在<code>lib</code>目录）下执行</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">sed -i <span class="string">&#x27;s/IO_ftrylockfile/IO_EOF_SEEN/&#x27;</span> lib/*.c</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;#define _IO_IN_BACKUP 0x100&quot;</span> &gt;&gt; lib/stdio-impl.h</span><br></pre></td></tr></table></figure>
+<p>给源文件打上补丁即可。（后来回忆或许是我不小心下载了老版本的m4？不过本文给出的1.4.18应该是目前的最新版本了）</p>
+<h3 id="安装GMP"><a href="#安装GMP" class="headerlink" title="安装GMP"></a>安装GMP</h3><p>这是<a href="https://gmplib.org/">官方网站</a>.</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ wget https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz</span><br><span class="line">$ tar Jxf gmp-6.2.1.tar.xz</span><br><span class="line">$ <span class="built_in">cd</span> gmp-6.2.1</span><br><span class="line">$ ./configure --prefix=<span class="variable">$HOME</span>/static --enable-static --disable-shared --with-pic</span><br><span class="line">$ make &amp;&amp; make check &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+<h3 id="安装MPFR"><a href="#安装MPFR" class="headerlink" title="安装MPFR"></a>安装MPFR</h3><p>这是<a href="https://www.mpfr.org/">官方网站</a>.</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ wget https://www.mpfr.org/mpfr-current/mpfr-4.1.0.tar.xz</span><br><span class="line">$ tar Jxf mpfr-4.1.0.tar.xz</span><br><span class="line">$ <span class="built_in">cd</span> mpfr-4.1.0</span><br><span class="line">$ ./configure --prefix=<span class="variable">$HOME</span>/static --enable-static --disable-shared --with-pic --with-gmp=<span class="variable">$HOME</span>/static</span><br><span class="line">$ make &amp;&amp; make check &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+<p>相信读者也看出来了，其实就是每次增加依赖的静态库路径。</p>
+<h3 id="安装MPC"><a href="#安装MPC" class="headerlink" title="安装MPC"></a>安装MPC</h3><p>这是<a href="http://www.multiprecision.org/mpc/download.html">官方网站</a>.</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ wget https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz</span><br><span class="line">$ tar xzf mpc-1.2.1.tar.gz</span><br><span class="line">$ <span class="built_in">cd</span> mpc-1.2.1</span><br><span class="line">$ ./configure --prefix=<span class="variable">$HOME</span>/static --enable-static --disable-shared --with-pic --with-gmp=<span class="variable">$HOME</span>/static --with-mpfr=<span class="variable">$HOME</span>/static</span><br><span class="line">$ make &amp;&amp; make check &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+<h3 id="安装gmpy2"><a href="#安装gmpy2" class="headerlink" title="安装gmpy2"></a>安装gmpy2</h3><p>终于可以安装gmpy2了。GitHub repo是<a href="https://github.com/aleaxit/gmpy">aleaxit/gmpy</a>，本文安装的是目前最新release 2.1.0b5。</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ wget https://github.com/aleaxit/gmpy/releases/download/gmpy2-2.1.0b5/gmpy2-2.1.0b5.tar.gz</span><br><span class="line">$ tar xzf gmpy2-2.1.0b5.tar.gz</span><br><span class="line">$ <span class="built_in">cd</span> gmpy2-2.1.0b5</span><br><span class="line">$ python setup.py build_ext --static-dir=<span class="variable">$HOME</span>/static</span><br><span class="line">$ python setup.py install</span><br></pre></td></tr></table></figure>
+<p>这里官方的<code>INSTALL</code>似乎有点问题，<code>--static-dir</code>选项写错了。到这为止应该已经安装完成了，可以用输出100以内质数测试一下（来源见参考文献[1]）：</p>
+<figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> gmpy2</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">100</span>):</span><br><span class="line">    <span class="keyword">if</span> gmpy2.is_prime(i):</span><br><span class="line">        print(i)</span><br></pre></td></tr></table></figure>
+<h4 id="保存gmpy2-egg"><a href="#保存gmpy2-egg" class="headerlink" title="保存gmpy2.egg"></a>保存<code>gmpy2.egg</code></h4><p>如果和队友合作，或者要在不同的几台机器上配相同的环境，每次重复一遍这个流程也太麻烦了。因此可以把这次build的<code>.egg</code>保存下来，之后可以分发，在新机器上用<code>easy_install</code>即可安装。执行完上面的安装以后，应该可以在gmpy2源码目录下的<code>build/bdist.linux-x86_64/gmpy2-2.1.0b5-py3.8-linux-x86_64.egg</code>找到<code>.egg</code>文件。下次安装时可以用</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ easy_install gmpy2-2.1.0b5-py3.8-linux-x86_64.egg</span><br></pre></td></tr></table></figure>
+<h3 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h3><p>[1] <a href="https://www.cnblogs.com/pcat/p/5746821.html">pcat - gmpy2安装使用方法</a></p>
+<p>[2] <a href="https://github.com/aleaxit/gmpy/blob/ebe32822fdd27b23ce33fa7c1cbade093203d59e/INSTALL">gmpy2开发者 - Installing gmpy2 on Unix/Linux</a></p>
+<p>[3] <a href="https://blog.csdn.net/Jun626/article/details/104870430">Jun626 - NUC980开源项目24-Please port gnulib freadahead.c to your platform!</a></p>
+]]></content>
+      <categories>
+        <category>配环境</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+        <tag>gmpy2</tag>
+        <tag>浮点数</tag>
+      </tags>
+  </entry>
 </search>
