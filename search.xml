@@ -843,7 +843,7 @@ P\{Hash overflows\}&=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq \sum_{j=1}^{M}P\{b
 <figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">int</span> a)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">int</span> *p)</span></span>;</span><br></pre></td></tr></table></figure>
 <p>那么<code>func(NULL)</code>就会导致二义性问题：预期调用指针版本的函数，但实际上参数为整形，调用了整形版本的函数。</p>
 <p>为了解决这个问题，C++ 11引入了空指针字面量<code>nullptr</code>，其类型为<code>std::nullptr_t</code>，可以隐式类型转换为任意类型指针或类成员指针。在一些C++ 11之后的实现中，<code>NULL</code>定义为<code>nullptr</code>。</p>
-<h4 id="延申：类成员指针不是指针"><a href="#延申：类成员指针不是指针" class="headerlink" title="延申：类成员指针不是指针"></a>延申：类成员指针不是指针</h4><p>类成员指针实际上是偏置量offset，而不是指向某一内存地址的指针。参考：<a href="https://isocpp.org/wiki/faq/pointers-to-members">Pointers to Member Functions</a>.</p>
+<h4 id="延伸：类成员指针不是指针"><a href="#延伸：类成员指针不是指针" class="headerlink" title="延伸：类成员指针不是指针"></a>延伸：类成员指针不是指针</h4><p>类成员指针实际上是偏置量offset，而不是指向某一内存地址的指针。参考：<a href="https://isocpp.org/wiki/faq/pointers-to-members">Pointers to Member Functions</a>.</p>
 <h3 id="如何在执行main函数前做一些自定义行为？"><a href="#如何在执行main函数前做一些自定义行为？" class="headerlink" title="如何在执行main函数前做一些自定义行为？"></a>如何在执行<code>main</code>函数前做一些自定义行为？</h3><p>一个trick：</p>
 <figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Foo</span> &#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    Foo() &#123;</span><br><span class="line">        <span class="comment">// do something...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">Foo foo;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>全局变量在<code>main</code>之前初始化，因此只要在自定义类型的构造函数里安排自定义行为，然后定义一个全局变量对象即可。</p>
@@ -852,7 +852,7 @@ P\{Hash overflows\}&=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq \sum_{j=1}^{M}P\{b
 </blockquote>
 <h3 id="模板函数能否在-cpp里实现，编译后成-o后再链接？"><a href="#模板函数能否在-cpp里实现，编译后成-o后再链接？" class="headerlink" title="模板函数能否在.cpp里实现，编译后成.o后再链接？"></a>模板函数能否在<code>.cpp</code>里实现，编译后成<code>.o</code>后再链接？</h3><p>不行。本科写图形学大作业时踩过的坑，当时乔总就告诉我应该直接写在<code>.hpp</code>头文件里。</p>
 <p>原理是<code>template</code>并没有定义任何东西，只有特化后确定了类型信息，编译器才能分配空间进而编译成<code>.o</code>，否则无法编译。</p>
-<h4 id="延申：避免模板重复"><a href="#延申：避免模板重复" class="headerlink" title="延申：避免模板重复"></a>延申：避免模板重复</h4><p>据说可以用<code>extern</code>，没有尝试过。</p>
+<h4 id="延伸：避免模板重复"><a href="#延伸：避免模板重复" class="headerlink" title="延伸：避免模板重复"></a>延伸：避免模板重复</h4><p>据说可以用<code>extern</code>，没有尝试过。</p>
 ]]></content>
       <categories>
         <category>编程</category>
