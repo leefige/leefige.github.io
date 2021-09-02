@@ -824,4 +824,42 @@ P\{Hash overflows\}&=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq \sum_{j=1}^{M}P\{b
         <tag>修理</tag>
       </tags>
   </entry>
+  <entry>
+    <title>面试中的C++问题（1）</title>
+    <url>/2021/09/03/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%881%EF%BC%89/</url>
+    <content><![CDATA[<p>虽然大部分面试都是问项目，然后一道代码题，但还是有少量公司很喜欢问“基础的”技术问题，比如C++、体系结构之类。因此开个新系列，记录一下面试里遇到的一些技术类问题。有一些很简单，也有一些可能也没那么常见。</p>
+<span id="more"></span>
+<h3 id="explicit"><a href="#explicit" class="headerlink" title="explicit"></a><code>explicit</code></h3><p>很基础的问题，用于避免隐式类型转换。遇到过的一个坑是图形学光线追踪大作业的框架，里面<code>Color</code>类构造函数RGB三个值都给了默认值然后没加<code>explicit</code>，导致<code>3.0f * Color(...)</code>时会把<code>3.0f</code>隐式转化成<code>Color</code>…</p>
+<h3 id="数组初始化默认值"><a href="#数组初始化默认值" class="headerlink" title="数组初始化默认值"></a>数组初始化默认值</h3><figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> a[<span class="number">8</span>] = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>&#125;;</span><br></pre></td></tr></table></figure>
+<p>那么没有显式写出来的值都是0.</p>
+<h3 id="char类型转换"><a href="#char类型转换" class="headerlink" title="char类型转换"></a><code>char</code>类型转换</h3><figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">char</span> a = <span class="number">-1</span>;</span><br><span class="line"><span class="keyword">int</span> b = a;</span><br></pre></td></tr></table></figure>
+<p>问<code>b &gt; 0</code>是否成立。显然不成立，<code>char</code>是有符号的。</p>
+<h3 id="0-NULL-nullptr"><a href="#0-NULL-nullptr" class="headerlink" title="0, NULL, nullptr"></a><code>0</code>, <code>NULL</code>, <code>nullptr</code></h3><p>这个问题没有那么显然。在C里，<code>NULL</code>定义为</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> NULL ((void *) 0)</span></span><br></pre></td></tr></table></figure>
+<p>因此<code>NULL</code>在C中可以安全地当成空指针使用。</p>
+<p>但C++没那么轻松，因为C++不允许<code>void *</code>隐式转换成其他类型的指针，所以不能沿用C的做法；只能简单地定义为0：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> __cplusplus</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> NULL 0</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> NULL ((void *) 0)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+<p>但C++支持同名函数重载，如果一个函数定义为</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">int</span> a)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">int</span> *p)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>那么<code>func(NULL)</code>就会导致二义性问题：预期调用指针版本的函数，但实际上参数为整形，调用了整形版本的函数。</p>
+<p>为了解决这个问题，C++ 11引入了空指针字面量<code>nullptr</code>，其类型为<code>std::nullptr_t</code>，可以隐式类型转换为任意类型指针或类成员指针。在一些C++ 11之后的实现中，<code>NULL</code>定义为<code>nullptr</code>。</p>
+<h4 id="延申：类成员指针不是指针"><a href="#延申：类成员指针不是指针" class="headerlink" title="延申：类成员指针不是指针"></a>延申：类成员指针不是指针</h4><p>类成员指针实际上是偏置量offset，而不是指向某一内存地址的指针。参考：<a href="https://isocpp.org/wiki/faq/pointers-to-members">Pointers to Member Functions</a>.</p>
+<h3 id="如何在执行main函数前做一些自定义行为？"><a href="#如何在执行main函数前做一些自定义行为？" class="headerlink" title="如何在执行main函数前做一些自定义行为？"></a>如何在执行<code>main</code>函数前做一些自定义行为？</h3><p>一个trick：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Foo</span> &#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    Foo() &#123;</span><br><span class="line">        <span class="comment">// do something...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">Foo foo;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>全局变量在<code>main</code>之前初始化，因此只要在自定义类型的构造函数里安排自定义行为，然后定义一个全局变量对象即可。</p>
+<blockquote>
+<p>一个想法：或许这里用<code>static Foo foo;</code>更好。</p>
+</blockquote>
+<h3 id="模板函数能否在-cpp里实现，编译后成-o后再链接？"><a href="#模板函数能否在-cpp里实现，编译后成-o后再链接？" class="headerlink" title="模板函数能否在.cpp里实现，编译后成.o后再链接？"></a>模板函数能否在<code>.cpp</code>里实现，编译后成<code>.o</code>后再链接？</h3><p>不行。本科写图形学大作业时踩过的坑，当时乔总就告诉我应该直接写在<code>.hpp</code>头文件里。</p>
+<p>原理是<code>template</code>并没有定义任何东西，只有特化后确定了类型信息，编译器才能分配空间进而编译成<code>.o</code>，否则无法编译。</p>
+<h4 id="延申：避免模板重复"><a href="#延申：避免模板重复" class="headerlink" title="延申：避免模板重复"></a>延申：避免模板重复</h4><p>据说可以用<code>extern</code>，没有尝试过。</p>
+]]></content>
+      <categories>
+        <category>编程</category>
+      </categories>
+      <tags>
+        <tag>面试</tag>
+        <tag>C++</tag>
+      </tags>
+  </entry>
 </search>
