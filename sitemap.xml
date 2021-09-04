@@ -2,9 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://leefige.github.io/2021/09/05/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%882%EF%BC%89/</loc>
+    
+    <lastmod>2021-09-04</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://leefige.github.io/2021/09/03/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%881%EF%BC%89/</loc>
     
-    <lastmod>2021-09-02</lastmod>
+    <lastmod>2021-09-04</lastmod>
     
   </url>
   
@@ -502,6 +509,27 @@
   
   <url>
     <loc>https://leefige.github.io/tags/C/</loc>
+    <lastmod>2021-09-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E7%A9%BA%E6%8C%87%E9%92%88/</loc>
+    <lastmod>2021-09-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88/</loc>
+    <lastmod>2021-09-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://leefige.github.io/tags/%E6%98%BE%E5%BC%8F%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2/</loc>
     <lastmod>2021-09-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
