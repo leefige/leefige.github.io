@@ -298,7 +298,7 @@ e&=f
 <img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/11.jpg" class="" title="fit">
 <p>从上图能够看出：</p>
 <p>当 β 较大时（β=0.98 相当于每一点前50天的平均气温），曲线波动相对较小更加平滑（绿色曲线），因为对很多天的气温做了平均处理，正因为如此，曲线还会右移。<br>同理，当 β 较小时（β=0.5 相当于每一点前2天的平均气温），曲线波动相对激烈，但是它可以更快的适应温度的变化。<br>下面直接看实现指数加权平均（Exponentially weighted average）的伪代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">V0 &#x3D; 0</span><br><span class="line">repeat</span><br><span class="line">&#123;</span><br><span class="line">    get next theta_t</span><br><span class="line">    V_theta &#x3D; beta * V_theta + (1 - beta)* theta_t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">V0 = 0</span><br><span class="line">repeat</span><br><span class="line">&#123;</span><br><span class="line">    get next theta_t</span><br><span class="line">    V_theta = beta * V_theta + (1 - beta)* theta_t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>关于指数加权平均的优缺点： 当 β=0.9β=0.9 时，我们可以近似的认为当前的数值是过去10天的平均值，但是显然如果我们直接计算过去10天的平均值，要比用指数加权平均来的更加准确。但是如果直接计算过去10天的平均值，我们要存储过去10天的数值，而加权平均只要存储Vt−1Vt−1一个数值即可，而且只需要一行代码即可，所以在机器学习中用的很多。</p>
 <h2 id="二、带偏差修正的指数加权平均（bias-correction-in-exponentially-weighted-average）"><a href="#二、带偏差修正的指数加权平均（bias-correction-in-exponentially-weighted-average）" class="headerlink" title="二、带偏差修正的指数加权平均（bias correction in exponentially weighted average）"></a>二、带偏差修正的指数加权平均（bias correction in exponentially weighted average）</h2><p>上一节中介绍了指数加权平均，用的公式是：</p>
 <script type="math/tex; mode=display">V_t=βV_{t−1{+(1−β)θ_t</script><p>我们想得到下图中的“绿线”，实际上我们得到的是下图中的“紫线”。对比这两条线，能够发现在“紫线”的起点相比“绿线”非常的低，也就是说 指数加权平均 不能很好地拟合前几天的数据，因此需要 偏差修正，解决办法就是，再令$V_t=\frac{V_t}{1-\beta^t}$. 因此， 带偏差修正的指数加权平均（bias correction in exponentially weighted average） 公式为：</p>
@@ -331,7 +331,7 @@ e&=f
 <p>4、当时修hinton的nn课时，hinton给出的版本与TensorFlow这个是一样的，链接见我的博客：</p>
 <p>这个版本是和ng在课上给出的版本是一致的，只不过会影响下learning_rate的取值。<br>综上，应该是哪个版本都可以。大家根据自己的喜好使用。</p>
 <p>由于我个人更喜欢ng/TensorFlow/pytorch那个形式，下面无论是代码还是伪代码我都会统一用ng的版本，下面给出momentum的伪代码：</p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">initialize VdW &#x3D; 0, vdb &#x3D; 0 &#x2F;&#x2F;VdW维度与dW一致，Vdb维度与db一致</span><br><span class="line">on iteration t:</span><br><span class="line">    compute dW,db on current mini-batch</span><br><span class="line">    VdW &#x3D; beta*VdW + (1-beta)*dW</span><br><span class="line">    Vdb &#x3D; beta*Vdb + (1-beta)*db</span><br><span class="line">    W &#x3D; W - learning_rate * VdW</span><br><span class="line">    b &#x3D; b - learning_rate * Vdb</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">initialize VdW = 0, vdb = 0 //VdW维度与dW一致，Vdb维度与db一致</span><br><span class="line">on iteration t:</span><br><span class="line">    compute dW,db on current mini-batch</span><br><span class="line">    VdW = beta*VdW + (1-beta)*dW</span><br><span class="line">    Vdb = beta*Vdb + (1-beta)*db</span><br><span class="line">    W = W - learning_rate * VdW</span><br><span class="line">    b = b - learning_rate * Vdb</span><br></pre></td></tr></table></figure>
 <p>具体的代码实现为：</p>
 <figure class="highlight py"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">initialize_velocity</span>(<span class="params">parameters</span>):</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Initializes the velocity as a python dictionary with:</span></span><br><span class="line"><span class="string">                - keys: &quot;dW1&quot;, &quot;db1&quot;, ..., &quot;dWL&quot;, &quot;dbL&quot;</span></span><br><span class="line"><span class="string">                - values: numpy arrays of zeros of the same shape as the corresponding gradients/parameters.</span></span><br><span class="line"><span class="string">    Arguments:</span></span><br><span class="line"><span class="string">    parameters -- python dictionary containing your parameters.</span></span><br><span class="line"><span class="string">                    parameters[&#x27;W&#x27; + str(l)] = Wl</span></span><br><span class="line"><span class="string">                    parameters[&#x27;b&#x27; + str(l)] = bl</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">    v -- python dictionary containing the current velocity.</span></span><br><span class="line"><span class="string">                    v[&#x27;dW&#x27; + str(l)] = velocity of dWl</span></span><br><span class="line"><span class="string">                    v[&#x27;db&#x27; + str(l)] = velocity of dbl</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    L = <span class="built_in">len</span>(parameters) // <span class="number">2</span> <span class="comment"># number of layers in the neural networks</span></span><br><span class="line">    v = &#123;&#125;</span><br><span class="line">    <span class="comment"># Initialize velocity</span></span><br><span class="line">    <span class="keyword">for</span> l <span class="keyword">in</span> <span class="built_in">range</span>(L):</span><br><span class="line">        v[<span class="string">&quot;dW&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = np.zeros(parameters[<span class="string">&quot;W&quot;</span> + <span class="built_in">str</span>(l+<span class="number">1</span>)].shape)</span><br><span class="line">        v[<span class="string">&quot;db&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = np.zeros(parameters[<span class="string">&quot;b&quot;</span> + <span class="built_in">str</span>(l+<span class="number">1</span>)].shape)</span><br><span class="line">    <span class="keyword">return</span> v</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">update_parameters_with_momentum</span>(<span class="params">parameters, grads, v, beta, learning_rate</span>):</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Update parameters using Momentum</span></span><br><span class="line"><span class="string">    Arguments:</span></span><br><span class="line"><span class="string">    parameters -- python dictionary containing your parameters:</span></span><br><span class="line"><span class="string">                    parameters[&#x27;W&#x27; + str(l)] = Wl</span></span><br><span class="line"><span class="string">                    parameters[&#x27;b&#x27; + str(l)] = bl</span></span><br><span class="line"><span class="string">    grads -- python dictionary containing your gradients for each parameters:</span></span><br><span class="line"><span class="string">                    grads[&#x27;dW&#x27; + str(l)] = dWl</span></span><br><span class="line"><span class="string">                    grads[&#x27;db&#x27; + str(l)] = dbl</span></span><br><span class="line"><span class="string">    v -- python dictionary containing the current velocity:</span></span><br><span class="line"><span class="string">                    v[&#x27;dW&#x27; + str(l)] = ...</span></span><br><span class="line"><span class="string">                    v[&#x27;db&#x27; + str(l)] = ...</span></span><br><span class="line"><span class="string">    beta -- the momentum hyperparameter, scalar</span></span><br><span class="line"><span class="string">    learning_rate -- the learning rate, scalar</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">    parameters -- python dictionary containing your updated parameters</span></span><br><span class="line"><span class="string">    v -- python dictionary containing your updated velocities</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    L = <span class="built_in">len</span>(parameters) // <span class="number">2</span> <span class="comment"># number of layers in the neural networks</span></span><br><span class="line">    <span class="comment"># Momentum update for each parameter</span></span><br><span class="line">    <span class="keyword">for</span> l <span class="keyword">in</span> <span class="built_in">range</span>(L):</span><br><span class="line">        <span class="comment"># compute velocities</span></span><br><span class="line">        v[<span class="string">&quot;dW&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = beta * v[<span class="string">&quot;dW&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] + (<span class="number">1</span> - beta) * grads[<span class="string">&#x27;dW&#x27;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)]</span><br><span class="line">        v[<span class="string">&quot;db&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = beta * v[<span class="string">&quot;db&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] + (<span class="number">1</span> - beta) * grads[<span class="string">&#x27;db&#x27;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)]</span><br><span class="line">        <span class="comment"># update parameters</span></span><br><span class="line">        parameters[<span class="string">&quot;W&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = parameters[<span class="string">&quot;W&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] - learning_rate * v[<span class="string">&quot;dW&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)]</span><br><span class="line">        parameters[<span class="string">&quot;b&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] = parameters[<span class="string">&quot;b&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)] - learning_rate * v[<span class="string">&quot;db&quot;</span> + <span class="built_in">str</span>(l + <span class="number">1</span>)]</span><br><span class="line">    <span class="keyword">return</span> parameters, v</span><br></pre></td></tr></table></figure>
 <h2 id="四、Nesterov-Momentum"><a href="#四、Nesterov-Momentum" class="headerlink" title="四、Nesterov Momentum"></a>四、Nesterov Momentum</h2><p>Nesterov Momentum是对Momentum的改进，可以理解为nesterov动量在标准动量方法中添加了一个校正因子。用一张图来形象的对比下momentum和nesterov momentum的区别（图片来自：<a href="http://ttic.uchicago.edu/~shubhendu/Pages/Files/Lecture6_pauses.pdf）：">http://ttic.uchicago.edu/~shubhendu/Pages/Files/Lecture6_pauses.pdf）：</a></p>
@@ -388,7 +388,7 @@ b &= b + \beta V \mathrm{d}b - \alpha \mathrm{d}b \\\end{aligned}</script><block
       </categories>
       <tags>
         <tag>梯度下降</tag>
-        <tag>优化方法</tag>
+        <tag>优化</tag>
       </tags>
   </entry>
   <entry>
@@ -945,6 +945,110 @@ P\{Hash overflows\}&=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq \sum_{j=1}^{M}P\{b
         <tag>C++</tag>
         <tag>智能指针</tag>
         <tag>显式类型转换</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>关于深度学习中的正则化</title>
+    <url>/2021/09/10/%E5%85%B3%E4%BA%8E%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E4%B8%AD%E7%9A%84%E6%AD%A3%E5%88%99%E5%8C%96/</url>
+    <content><![CDATA[<p>简单串一下“花书”里的正则化相关内容。本篇主要关注范数正则化，之后有机会再整理bagging、dropout和BN。</p>
+<p>总体而言，设关于参数$w\in\mathbb{R}^n$的正则化项为$\Omega(w)$，设原始损失函数为$J(w; X, y)$，则加入正则化项后的优化目标为</p>
+<script type="math/tex; mode=display">\arg\min_{w}J(w; X, y)+\alpha\Omega(w).</script><p>另外假设原始损失函数对应的最优解为$w^\ast$.</p>
+<span id="more"></span>
+<h3 id="L2-norm"><a href="#L2-norm" class="headerlink" title="L2 norm"></a>L2 norm</h3><p>L2 norm，即weight decay，即Ridge regression，</p>
+<script type="math/tex; mode=display">\Omega(w)=\frac{1}{2}\Vert{w}\Vert_2^2 = \frac{\alpha}{2}w^\top w.</script><p>单步效果上，每次更新为</p>
+<script type="math/tex; mode=display">w\gets(1-\eta\alpha)w - \nabla_w J(w; X, y),</script><p>其中$\eta$为学习率，即先将$w$放缩$(1-\eta\alpha)$倍（decay），再更新梯度。</p>
+<p>总体效果上，原始损失函数$J$的Hessian为$H$，考虑<strong>二阶近似</strong>，$J$在$w^\ast$处展开：</p>
+<script type="math/tex; mode=display">\hat{J}(w)=J(w^\ast)+\frac{1}{2}(w-w^\ast)^\top H (w-w^\ast) + o(w^2),</script><p>由于取得最优，一次项为0，且$H$正定。那么加入正则化项后的近似目标为</p>
+<script type="math/tex; mode=display">\tilde{J}(w) := J(w^\ast) + \frac{1}{2}(w-w^\ast)^\top H (w-w^\ast) + \frac{\alpha}{2}w^\top w.</script><p>设$H$的特征值为$\lambda_i$，L2找到的二阶近似最优解是</p>
+<script type="math/tex; mode=display">\tilde{w} = Q(\Lambda+\alpha I)^{-1}\Lambda Qw^\ast,</script><p>其中$Q$为特征向量矩阵。</p>
+<p>可见$\tilde{w}$在第$i$个特征向量方向上，将$w^\ast$在该方向分量缩放了$\frac{\lambda_i}{\lambda_i+\alpha}$倍。$\lambda_i\gg\alpha$的特征方向上几乎不变，<br>$\lambda_i\ll\alpha$的特征方向上趋向于0（但只要$w^\ast_i\not=0$，就不会变成0）。</p>
+<p>直观上，L2 norm对曲率（体现为Hessian的特征值大小）表现出偏好，曲率小的方向，即沿该方向移动无助于减小损失函数值的方向，$w$在该方向对应的分量会由于weight decay效应而衰减。大曲率方向上的衰减则小得多。</p>
+<blockquote>
+<p>从分量角度，</p>
+<script type="math/tex; mode=display">\tilde{w}_i=\frac{H_{i,i}}{H_{i,i}+\alpha}w^\ast_i,</script><p>可见若$w^\ast_i\not=0$，则$\tilde{w}_i\not=0$。</p>
+</blockquote>
+<p>L2 norm等价于以高斯分布为先验的MAP估计。（请参考下一篇文章）</p>
+<h3 id="L1-norm"><a href="#L1-norm" class="headerlink" title="L1 norm"></a>L1 norm</h3><p>L1 norm，即Lasso，</p>
+<script type="math/tex; mode=display">\Omega(w)=\Vert{w}\Vert_1=\sum_i{|w_i|}.</script><p>总体效果上，同样考虑二阶近似，正则化后的解为</p>
+<script type="math/tex; mode=display">\tilde{w}_i=\mathrm{sign}(w^\ast_i)\max\left\{|w^\ast_i|-\frac{\alpha}{H_{i,i}}, 0\right\},</script><p>其中$H_{i,i}$是Hessian的对角线元素。</p>
+<p>可见若</p>
+<script type="math/tex; mode=display">w^\ast_i\leq\frac{\alpha}{H_{i,i}},</script><p>则最优 $\tilde{w}_i$ 为0（cf. L2 norm不会强制变为0）。</p>
+<p>否则方向不变，绝对值减少$\frac{\alpha}{H_{i,i}}$。这就是L1 norm导致的“稀疏性”。</p>
+<p>L1 norm等价于以各向同的Laplace分布为先验的MAP。（请参考下一篇文章）</p>
+<h3 id="范数正则化项和带约束的优化之间的关联"><a href="#范数正则化项和带约束的优化之间的关联" class="headerlink" title="范数正则化项和带约束的优化之间的关联"></a>范数正则化项和带约束的优化之间的关联</h3><p>从带约束的优化出发，假设给定一个常数$k&gt;0$，对范数有约束$\Omega(w) &lt; k$，记KKT乘子为$\alpha\geq 0$，则构造目标函数</p>
+<script type="math/tex; mode=display">\mathcal{L}(w, \alpha; X, y)=J(w; X, y)+\alpha(\Omega(w)-k),</script><p>对应的无约束优化最优解为</p>
+<script type="math/tex; mode=display">w^\ast = \arg\min_{w}\max_{\alpha, \alpha\geq 0} \mathcal{L}(w, \alpha; X, y).</script><p>假设我们已经确定了最优解中的$\alpha^\ast&gt;0$，正的$\alpha$体现了约束的意义（如果$\alpha=0$，则约束不起作用）。<br>在给定该$\alpha^\ast$时，优化问题转化为</p>
+<script type="math/tex; mode=display">w^\ast = \arg\min_{w}\mathcal{L}(w, \alpha^\ast; X, y) = \arg\min_{w} J(w; X, y)+\alpha^\ast\Omega(w).</script><p>注意$-\alpha^\ast k$一项因为与$w$无关而省略。</p>
+<p>上式从形式上与前面讨论的带Lp范数正则化项的损失函数$\tilde{J}(\cdot)$完全一致，只不过在“正则化”语境下，我们预先给定了这个$\alpha^\ast$。也即，Lp范数正则化相当于给原问题附加了 <em>``$w$在某个半径为$k$的Lp-ball内”</em> 这一约束条件，$k$理论上可以由损失函数$J$和我们给定的$\alpha$确定，但一般不会确切求解。只需要注意一个原则：alpha越大，对应的k越小。这是一种隐式约束。</p>
+<p>如果需要显式约束，可以用重投影优化，即每次更新一步后，将更新后的$w$重新投影回约束空间内（如L2-ball）。比如要求对权重矩阵每列（i.e. 神经网络一层中的一个神经元的权重）的范数单独约束，则一般需要显式约束。</p>
+<h3 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h3><p><a href="https://www.deeplearningbook.org/">[1]</a> Goodfellow, Ian, Yoshua Bengio, and Aaron Courville. Deep learning. MIT press, 2016.</p>
+]]></content>
+      <categories>
+        <category>ML</category>
+      </categories>
+      <tags>
+        <tag>优化</tag>
+        <tag>深度学习</tag>
+        <tag>正则化</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>关于深度学习中的优化目标</title>
+    <url>/2021/09/10/%E5%85%B3%E4%BA%8E%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E4%B8%AD%E7%9A%84%E4%BC%98%E5%8C%96%E7%9B%AE%E6%A0%87/</url>
+    <content><![CDATA[<p>前一篇文章提到了L2 norm（weight decay）和以高斯分布为先验的最大后验估计（Maximum a Posteriori，MAP）的等价性，顺手整理一下和深度学习优化目标相关的几个概念。</p>
+<span id="more"></span>
+<p>记朴素的损失函数（loss function）为$J(w;X,y)$。一般意义上容易想到的“损失”如均方误差（Mean Square Error，MSE）：</p>
+<script type="math/tex; mode=display">\mathrm{MSE}=\frac{1}{m}\sum_{i=1}^m \Vert\hat{y}^{(i)} - y^{(i)}\Vert_2^2,</script><p>其中，假设模型为$f(x;w)$，则预测结果$\hat{y}^{(i)}=f(x^{(i)};w)$. 深度学习/机器学习可以直接优化这个损失函数。</p>
+<p>更广义而言，深度学习/机器学习所优化的函数又不限于“损失”，不妨称为优化目标函数（target function），当然也可以称为（广义的）损失函数。针对不同情况，优化目标可以如以下几类：</p>
+<ul>
+<li>狭义的损失函数，如MSE；</li>
+<li>负对数似然，对应于最大似然估计（Maximum Likelihood Estimation，MLE）；</li>
+<li>两个分布的距离，如交叉熵（Cross Entropy）、KL散度（KL Divergence）；</li>
+<li>带正则项的目标函数：$J(w;X,y) + \alpha\Omega(w), \alpha&gt;0$；</li>
+<li>带先验的负对数似然，对应于最大后验估计（MAP）：$-\ell(w;X,y)-\log p(w)$。</li>
+</ul>
+<p>以上各目标函数都应当最小化以取得最优参数值。</p>
+<h3 id="香农熵、交叉熵和KL散度"><a href="#香农熵、交叉熵和KL散度" class="headerlink" title="香农熵、交叉熵和KL散度"></a>香农熵、交叉熵和KL散度</h3><p>单点取值对应的<strong>自信息</strong>：</p>
+<script type="math/tex; mode=display">I(x) = -\log P(x).</script><p>随机变量分布的<strong>香农熵</strong>：</p>
+<script type="math/tex; mode=display">H(X) = \mathbb{E}_{X\sim P}[I(x)]=-\mathbb{E}_{X\sim P}[\log P(x)].</script><p>KL散度：</p>
+<script type="math/tex; mode=display">\mathrm{KL}(P||Q) = \mathbb{E}_{X\sim P}\left[\log\frac{P(x)}{Q(x)}\right] = \mathbb{E}_{X\sim P}\left[\log P(x) - \log Q(x)\right].</script><p>交叉熵：</p>
+<script type="math/tex; mode=display">H(P,Q) = -\mathbb{E}_{X\sim P}[\log Q(x)].</script><blockquote>
+<p>注意：交叉熵衡量任意两个分布，不绑定于softmax层输出预测概率和one-hot label之间的交叉熵形式。（“花书”注）</p>
+</blockquote>
+<p>因此有</p>
+<script type="math/tex; mode=display">H(P, Q) = H(P) + \mathrm{KL}(P||Q).</script><h3 id="MLE、交叉熵和KL散度的等价性"><a href="#MLE、交叉熵和KL散度的等价性" class="headerlink" title="MLE、交叉熵和KL散度的等价性"></a>MLE、交叉熵和KL散度的等价性</h3><p>在机器学习语境下，假设数据服从的经验（empirical）分布为$\hat{p}(x)$，模型预测分布为$q(x;\theta)$.</p>
+<p>MLE估计优化目标为</p>
+<script type="math/tex; mode=display">\arg\max_\theta \sum_{i=0}^m\log q(x^{(i)};\theta).</script><p>这等价于在训练数据的经验分布上的期望：</p>
+<script type="math/tex; mode=display">\arg\max_\theta \mathbb{E}_{X\sim \hat{p}}[\log q(x^{(i)};\theta)].</script><p>而用KL散度作为优化目标，有：</p>
+<script type="math/tex; mode=display">\arg\min_\theta \mathrm{KL}(\hat{p}||q)= \arg\min_\theta \mathbb{E}_{X\sim \hat{p}}[\log \hat{p}(x^{(i)}) - \log q(x^{(i)};\theta)].</script><p>假设数据生成过程固定，则优化目标与$\log \hat{p}(x^{(i)})$一项无关，那么该优化目标等价于</p>
+<script type="math/tex; mode=display">\arg\min_\theta -\mathbb{E}_{X\sim \hat{p}}[\log q(x^{(i)};\theta)],</script><p>这与MLE完全等价。</p>
+<p>当优化目标为交叉熵$H(\hat{p}, q)$时，假设数据生成过程固定，则最小化交叉熵$H(\hat{p}, q)$等价于最小化KL散度$\mathrm{KL}(\hat{p}||q)$。</p>
+<p>因此，MLE、交叉熵和KL散度作为优化目标函数相互等价。</p>
+<h3 id="高斯分布假设下MSE和MLE的等价性"><a href="#高斯分布假设下MSE和MLE的等价性" class="headerlink" title="高斯分布假设下MSE和MLE的等价性"></a>高斯分布假设下MSE和MLE的等价性</h3><p>MSE的使用场合大多为有监督学习下，对条件概率$p(y|x;\theta)$进行建模的情况。因此这里考虑条件似然。以MLE作为目标函数，假设样本i.i.d.，则优化目标为</p>
+<script type="math/tex; mode=display">\arg\max_\theta \log p(Y|X;\theta) = \arg\max_\theta\sum_{i=1}^m \log p(y^{(i)}|x^{(i)};\theta).</script><p>假设模型预测结果为$\hat{y}(x;w)$，定义模型输出概率服从以预测结果为均值的高斯分布：$p(y|x;w)=\mathcal{N}(y;\hat{y}(x;w), \sigma^2)$，其中方差$\sigma^2$给定. 代入MLE优化目标：</p>
+<script type="math/tex; mode=display">\arg\max_\theta\sum_{i=1}^m \log q(y^{(i)}|x^{(i)};\theta)=\arg\min_\theta\sum_{i=1}^m\frac{\vert\hat{y}^{(i)}(x^{(i)};w) - y^{(i)}\vert^2}{2\sigma^2},</script><p>其中忽略了一些不含$w$的项。</p>
+<p>该函数的最优解与MSE最优解完全等价。</p>
+<blockquote>
+<p>简单起见，这里假设label $y$为标量。$y$为向量的情况下，假设模型输出概率为一多维高斯分布，给定协方差矩阵（如对角阵$I$）即可。</p>
+</blockquote>
+<h3 id="带正则项的优化目标与MAP的等价性"><a href="#带正则项的优化目标与MAP的等价性" class="headerlink" title="带正则项的优化目标与MAP的等价性"></a>带正则项的优化目标与MAP的等价性</h3><p>MAP优化目标为</p>
+<script type="math/tex; mode=display">\arg\max_\theta p(\theta|x)=\arg\max_\theta p(x|\theta)+\log p(\theta).</script><p>假设先验$p(\theta)$服从高斯分布$\mathcal{N}(\theta; 0, \frac{1}{\alpha}I)$，则</p>
+<script type="math/tex; mode=display">-\log p(\theta)\propto \alpha \theta^\top \theta,</script><p>即weight decay惩罚项，也即L2 norm正则项。</p>
+<p>类似的，假设先验$p(\theta)$服从各向同的Laplace分布$\mathrm{Laplace}(\theta_i; 0, \frac{1}{\alpha})$，则</p>
+<script type="math/tex; mode=display">-\log p(\theta)\propto \alpha \Vert\theta\Vert_1,</script><p>即L1 norm正则项。</p>
+<h3 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h3><p><a href="https://www.deeplearningbook.org/">[1]</a> Goodfellow, Ian, Yoshua Bengio, and Aaron Courville. Deep learning. MIT press, 2016.</p>
+]]></content>
+      <categories>
+        <category>ML</category>
+      </categories>
+      <tags>
+        <tag>交叉熵</tag>
+        <tag>优化</tag>
+        <tag>深度学习</tag>
+        <tag>损失函数</tag>
+        <tag>KL散度</tag>
+        <tag>MLE估计</tag>
+        <tag>MAP估计</tag>
       </tags>
   </entry>
 </search>
