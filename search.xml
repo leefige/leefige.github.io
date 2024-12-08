@@ -199,42 +199,6 @@ e&amp;=f
       </tags>
   </entry>
   <entry>
-    <title>Golang创建定时程序</title>
-    <url>/2021/03/10/Golang%E5%88%9B%E5%BB%BA%E5%AE%9A%E6%97%B6%E7%A8%8B%E5%BA%8F/</url>
-    <content><![CDATA[<p>前两天用Golang手写MapReduce框架时，遇到这样一个问题：</p>
-<blockquote>
-<p>worker可能随时crash，那么coordinator分配给worker的任务不能无限等待worker的回复，因此需要给每个分配出去的任务设置timeout，也就是需要一个定时程序清理crash/太慢的worker的任务。</p>
-</blockquote>
-<span id="more"></span>
-<p>Golang对并发的原生支持是比较好的，直观而言，只需要在某个goroutine里等待timeout，然后重置这个任务即可。这里我们用“更像Golang”的方法来完成这个任务。</p>
-<h3 id="golang-time.timer">Golang <code>time.Timer</code></h3>
-<p><code>time.Timer</code>是Golang标准库中提供的定时器。用如下代码可以创建一个新定时器(定时10秒)：</p>
-<figure class="highlight go"><table><tr><td class="code"><pre><span class="line">timer := time.NewTimer(time.Second * <span class="number">10</span>)</span><br></pre></td></tr></table></figure>
-<p><code>Timer</code>有一个成员<code>C</code>，类型是<code>chan Time</code>的channel，根据官方文档：</p>
-<blockquote>
-<p>The Timer type represents a single event. When the Timer expires, the
-current time will be sent on C, unless the Timer was created by
-AfterFunc. A Timer must be created with NewTimer or AfterFunc.</p>
-</blockquote>
-<p>可见如果用上面的<code>NewTimer</code>方法指定计时，那么<code>Timer</code>到期后，会给<code>C</code>发送时间。</p>
-<p>再注意到Golang中channel是会阻塞的，我们可以用这个方法判断是否到时。</p>
-<h3 id="定时程序">定时程序</h3>
-<p>首先在调用者函数中创建定时器<code>Timer</code>，接着启动一个goroutine来等候<code>Timer</code>的信号，这时调用者函数可以继续做其他工作。</p>
-<figure class="highlight go"><figcaption><span>timer.go</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    done := <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// set up timer</span></span><br><span class="line">    fmt.Println(<span class="string">&quot;10s timeout set up&quot;</span>)</span><br><span class="line">    timer := time.NewTimer(time.Second * <span class="number">10</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// goroutine waiting for timeout</span></span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="comment">// will block here before expiring</span></span><br><span class="line">        &lt;-timer.C</span><br><span class="line">        <span class="comment">// mark the flag as done</span></span><br><span class="line">        fmt.Println(<span class="string">&quot;timeout!&quot;</span>)</span><br><span class="line">        done = <span class="literal">true</span></span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    <span class="comment">// do some other work...</span></span><br><span class="line">    <span class="keyword">for</span> !done &#123;</span><br><span class="line">        fmt.Println(<span class="string">&quot;still working...&quot;</span>)</span><br><span class="line">        time.Sleep(time.Second)</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Println(<span class="string">&quot;finally finished!&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>上面这段程序输出如下，每句<code>still working...</code>输出间隔1秒：</p>
-<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ go run timer.go</span><br><span class="line">10s <span class="built_in">timeout</span> <span class="built_in">set</span> up</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line"><span class="built_in">timeout</span>!</span><br><span class="line">finally finished!</span><br></pre></td></tr></table></figure>
-]]></content>
-      <categories>
-        <category>技巧</category>
-      </categories>
-      <tags>
-        <tag>Golang</tag>
-        <tag>并发</tag>
-        <tag>定时</tag>
-        <tag>程序设计</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>人类心智和计算机发展简史：《人类的终极命运》读书笔记</title>
     <url>/2019/03/04/%E3%80%8A%E4%BA%BA%E7%B1%BB%E7%9A%84%E7%BB%88%E6%9E%81%E5%91%BD%E8%BF%90%E3%80%8B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/</url>
     <content><![CDATA[<blockquote class="blockquote-center">
@@ -298,6 +262,42 @@ AfterFunc. A Timer must be created with NewTimer or AfterFunc.</p>
       </tags>
   </entry>
   <entry>
+    <title>Golang创建定时程序</title>
+    <url>/2021/03/10/Golang%E5%88%9B%E5%BB%BA%E5%AE%9A%E6%97%B6%E7%A8%8B%E5%BA%8F/</url>
+    <content><![CDATA[<p>前两天用Golang手写MapReduce框架时，遇到这样一个问题：</p>
+<blockquote>
+<p>worker可能随时crash，那么coordinator分配给worker的任务不能无限等待worker的回复，因此需要给每个分配出去的任务设置timeout，也就是需要一个定时程序清理crash/太慢的worker的任务。</p>
+</blockquote>
+<span id="more"></span>
+<p>Golang对并发的原生支持是比较好的，直观而言，只需要在某个goroutine里等待timeout，然后重置这个任务即可。这里我们用“更像Golang”的方法来完成这个任务。</p>
+<h3 id="golang-time.timer">Golang <code>time.Timer</code></h3>
+<p><code>time.Timer</code>是Golang标准库中提供的定时器。用如下代码可以创建一个新定时器(定时10秒)：</p>
+<figure class="highlight go"><table><tr><td class="code"><pre><span class="line">timer := time.NewTimer(time.Second * <span class="number">10</span>)</span><br></pre></td></tr></table></figure>
+<p><code>Timer</code>有一个成员<code>C</code>，类型是<code>chan Time</code>的channel，根据官方文档：</p>
+<blockquote>
+<p>The Timer type represents a single event. When the Timer expires, the
+current time will be sent on C, unless the Timer was created by
+AfterFunc. A Timer must be created with NewTimer or AfterFunc.</p>
+</blockquote>
+<p>可见如果用上面的<code>NewTimer</code>方法指定计时，那么<code>Timer</code>到期后，会给<code>C</code>发送时间。</p>
+<p>再注意到Golang中channel是会阻塞的，我们可以用这个方法判断是否到时。</p>
+<h3 id="定时程序">定时程序</h3>
+<p>首先在调用者函数中创建定时器<code>Timer</code>，接着启动一个goroutine来等候<code>Timer</code>的信号，这时调用者函数可以继续做其他工作。</p>
+<figure class="highlight go"><figcaption><span>timer.go</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;fmt&quot;</span></span><br><span class="line">    <span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    done := <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// set up timer</span></span><br><span class="line">    fmt.Println(<span class="string">&quot;10s timeout set up&quot;</span>)</span><br><span class="line">    timer := time.NewTimer(time.Second * <span class="number">10</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// goroutine waiting for timeout</span></span><br><span class="line">    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="comment">// will block here before expiring</span></span><br><span class="line">        &lt;-timer.C</span><br><span class="line">        <span class="comment">// mark the flag as done</span></span><br><span class="line">        fmt.Println(<span class="string">&quot;timeout!&quot;</span>)</span><br><span class="line">        done = <span class="literal">true</span></span><br><span class="line">    &#125;()</span><br><span class="line"></span><br><span class="line">    <span class="comment">// do some other work...</span></span><br><span class="line">    <span class="keyword">for</span> !done &#123;</span><br><span class="line">        fmt.Println(<span class="string">&quot;still working...&quot;</span>)</span><br><span class="line">        time.Sleep(time.Second)</span><br><span class="line">    &#125;</span><br><span class="line">    fmt.Println(<span class="string">&quot;finally finished!&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面这段程序输出如下，每句<code>still working...</code>输出间隔1秒：</p>
+<figure class="highlight sh"><table><tr><td class="code"><pre><span class="line">$ go run timer.go</span><br><span class="line">10s <span class="built_in">timeout</span> <span class="built_in">set</span> up</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line">still working...</span><br><span class="line"><span class="built_in">timeout</span>!</span><br><span class="line">finally finished!</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>技巧</category>
+      </categories>
+      <tags>
+        <tag>Golang</tag>
+        <tag>并发</tag>
+        <tag>定时</tag>
+        <tag>程序设计</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>《极乐迪斯科》游戏短评</title>
     <url>/2020/05/17/%E3%80%8A%E6%9E%81%E4%B9%90%E8%BF%AA%E6%96%AF%E7%A7%91%E3%80%8B%E6%B8%B8%E6%88%8F%E7%9F%AD%E8%AF%84/</url>
     <content><![CDATA[<blockquote>
@@ -332,24 +332,56 @@ href="https://en.wikipedia.org/wiki/British_Sea_Power">^
       </tags>
   </entry>
   <entry>
-    <title>【转载】透彻理解交叉熵背后的直觉</title>
-    <url>/2019/03/04/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E9%80%8F%E5%BD%BB%E7%90%86%E8%A7%A3%E4%BA%A4%E5%8F%89%E7%86%B5%E8%83%8C%E5%90%8E%E7%9A%84%E7%9B%B4%E8%A7%89/</url>
-    <content><![CDATA[<blockquote><p>交叉熵（cross
-entropy）是深度学习中常用的一个概念，一般用来求目标与预测值之间的差距。以前做一些分类问题的时候，没有过多的注意，直接调用现成的库，用起来也比较方便。最近开始研究起对抗生成网络（GANs），用到了交叉熵，发现自己对交叉熵的理解有些模糊，不够深入。遂花了几天的时间从头梳理了一下相关知识点，才算透彻的理解了，特地记录下来，以便日后查阅。</p>
-<footer><strong>史丹利复合田</strong><cite><a href="https://blog.csdn.net/tsyccnh/article/details/79163834">一文搞懂交叉熵在机器学习中的使用，透彻理解交叉熵背后的直觉</a></cite></footer></blockquote>
+    <title>一年又一年</title>
+    <url>/2024/04/04/%E4%B8%80%E5%B9%B4%E5%8F%88%E4%B8%80%E5%B9%B4/</url>
+    <content><![CDATA[<p>转眼已经 2024 年清明了。从 2021
+年秋招开始，就没怎么得空更新博客，两年多忙忙碌碌，尝试且完成了太多事，只是都没有落笔记录。毕业前换了电脑，连
+hexo
+都没装，最近发现之前博客的访客记录和评论区都没了，才又翻教程回忆当初的配置，所幸关键信息都有记录，博客得以起死回生。</p>
 <span id="more"></span>
-<hr />
-<p>作者：史丹利复合田 来源：CSDN
-原文：https://blog.csdn.net/tsyccnh/article/details/79163834
-版权声明：本文为博主原创文章，转载请附上博文链接！</p>
+<p>两年前同一天，我为毕业论文殚精竭虑，感冒了还硬拉着合作者学弟在北馆咖啡厅讨论了一下午，晚饭后又转战独峰书院继续聊到九点。七小时高强度科研终于弥合了证明里一直过不去的
+gap，整个工作有了比较坚实的基础，一直忧虑毕业问题的我终于放心——「毕业论文这下能写完了」——尽管当时距离论文提交只剩不到两周，我还卡在理论部分，整篇论文大概只完成了四分之一。第二天我的嗓子完全哑了，之后连续几天只能手语和食堂大妈交流。</p>
+<p>一年前的清明假期，全组加班（三倍工资真香），此前不久我在公司的第一篇论文投稿刚被审稿人喷得体无完肤，这时正在紧锣密鼓重写论文赶
+4.7 的截稿日。与此同时，千辛万苦合入项目里的功能也因触发 bug 而被
+revert，一个巨大的烂摊子还等着我投稿完成后回去收拾。</p>
+<p>时间来到 2024 年，就在昨晚，我拖着连续 debug
+三天终于成功的疲惫身心回家，九点钟一沾枕头就陷入沉睡，半梦半醒间还在想，一觉醒来论文就该出结果了。晚上
+11
+点睁眼，看到手机上十条工作消息，心想一定是审稿结果出来了，一点开就看到群里合作者表示「不用倒立洗头了」——论文终于中了。</p>
+<p>在公司完成的这篇历时一年半投稿 4 次的论文，从 2022
+年投稿被审稿人喷，到 2024 年 rebuttal
+里我喷审稿人，见证了许多。这同一篇文章上一次投稿被接收为
+poster，让我得以第一次参加学术会议，如今又为我带来不到半年后再次以长文作者身份参加学术会议的机会。而我的毕业论文，在毕业后我又与优秀且耐心的合作者们继续完善，历经一次
+major revision
+后终于在去年年底被领域顶会接收（可惜两个会议时间相隔太近，这篇文章的会议只能请合作者前往参加了）。</p>
+<p>两年来，业余生活也算“沧海桑田”。2022
+上半年于毕业论文之外，在音乐和乐队上投入了巨量精力，当时的若干演出视频如今还可在
+b 站看到。2023
+年，经历了疾病的转折，在乐器演奏上几乎完全懈怠了，转向了单纯的音乐欣赏。“感谢”吴氏策划，这一年成为我给国家大剧院送钱最多的一年，古典音乐欣赏水平也上了几个台阶，有了自己最喜欢的歌剧唱段，多次在长途旅程中反复聆听。</p>
+<p>2022 下半年出差期间看了《边缘行者》，受其启发买了《赛博朋克
+2077》，年底通关了全部结局，这可能是将近十年来我第一个通关的 3A
+大作。2023 又买了 Switch
+和最新两部《塞尔达传说》，大半年拖拖拉拉，今年过年后的一个周末终于连续通关《王国之泪》和《旷野之息》——没错，这两部是并行玩的。2023
+TGA 后开始玩《博德之门
+3》，上个月也通关了。工作后业余时间更加自由，加上一台自己装的高性能 ITX
+和人生中第一台游戏机，终于无拘无束大过游戏瘾。这期间，还接着 2010
+年存的档打通了初中玩的《天之痕》，以硬核模式不知道第几周目再次通关《Disco
+Elysium》并上传几条游戏视频到 b
+站收获了一些好评，还花一个周末飞速通关「语言学小游戏」《巴别塔圣歌》。</p>
+<p>去年又重新启用了我尘封已久的护照，逮着东南亚和中亚的免签国家，五一在吴哥窟暴晒，十一在哈萨克乌兹别克猛吃。啊，至今晚上临睡前饿了，还会想念塔什干手抓饭中心的
+Pilaf，和暹粒 Malis
+的高棉菜。今年更是借着开会，在爱丁堡他乡遇故知，下次开会还有望在京都继续他乡遇故知。</p>
+<p>毕业后的第一个小章节似乎要告一段落，这或许正是重启博客更新的最佳时机。</p>
 ]]></content>
       <categories>
-        <category>ML</category>
+        <category>随笔</category>
       </categories>
       <tags>
-        <tag>交叉熵</tag>
-        <tag>理论</tag>
-        <tag>直觉</tag>
+        <tag>论文</tag>
+        <tag>游戏</tag>
+        <tag>音乐</tag>
+        <tag>旅游</tag>
+        <tag>生活</tag>
       </tags>
   </entry>
   <entry>
@@ -2050,56 +2082,48 @@ style="display: inline-flex; align-items: center;">​<svg class="Zi Zi--ArrowDo
       </tags>
   </entry>
   <entry>
-    <title>一年又一年</title>
-    <url>/2024/04/04/%E4%B8%80%E5%B9%B4%E5%8F%88%E4%B8%80%E5%B9%B4/</url>
-    <content><![CDATA[<p>转眼已经 2024 年清明了。从 2021
-年秋招开始，就没怎么得空更新博客，两年多忙忙碌碌，尝试且完成了太多事，只是都没有落笔记录。毕业前换了电脑，连
-hexo
-都没装，最近发现之前博客的访客记录和评论区都没了，才又翻教程回忆当初的配置，所幸关键信息都有记录，博客得以起死回生。</p>
+    <title>【转载】透彻理解交叉熵背后的直觉</title>
+    <url>/2019/03/04/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E9%80%8F%E5%BD%BB%E7%90%86%E8%A7%A3%E4%BA%A4%E5%8F%89%E7%86%B5%E8%83%8C%E5%90%8E%E7%9A%84%E7%9B%B4%E8%A7%89/</url>
+    <content><![CDATA[<blockquote><p>交叉熵（cross
+entropy）是深度学习中常用的一个概念，一般用来求目标与预测值之间的差距。以前做一些分类问题的时候，没有过多的注意，直接调用现成的库，用起来也比较方便。最近开始研究起对抗生成网络（GANs），用到了交叉熵，发现自己对交叉熵的理解有些模糊，不够深入。遂花了几天的时间从头梳理了一下相关知识点，才算透彻的理解了，特地记录下来，以便日后查阅。</p>
+<footer><strong>史丹利复合田</strong><cite><a href="https://blog.csdn.net/tsyccnh/article/details/79163834">一文搞懂交叉熵在机器学习中的使用，透彻理解交叉熵背后的直觉</a></cite></footer></blockquote>
 <span id="more"></span>
-<p>两年前同一天，我为毕业论文殚精竭虑，感冒了还硬拉着合作者学弟在北馆咖啡厅讨论了一下午，晚饭后又转战独峰书院继续聊到九点。七小时高强度科研终于弥合了证明里一直过不去的
-gap，整个工作有了比较坚实的基础，一直忧虑毕业问题的我终于放心——「毕业论文这下能写完了」——尽管当时距离论文提交只剩不到两周，我还卡在理论部分，整篇论文大概只完成了四分之一。第二天我的嗓子完全哑了，之后连续几天只能手语和食堂大妈交流。</p>
-<p>一年前的清明假期，全组加班（三倍工资真香），此前不久我在公司的第一篇论文投稿刚被审稿人喷得体无完肤，这时正在紧锣密鼓重写论文赶
-4.7 的截稿日。与此同时，千辛万苦合入项目里的功能也因触发 bug 而被
-revert，一个巨大的烂摊子还等着我投稿完成后回去收拾。</p>
-<p>时间来到 2024 年，就在昨晚，我拖着连续 debug
-三天终于成功的疲惫身心回家，九点钟一沾枕头就陷入沉睡，半梦半醒间还在想，一觉醒来论文就该出结果了。晚上
-11
-点睁眼，看到手机上十条工作消息，心想一定是审稿结果出来了，一点开就看到群里合作者表示「不用倒立洗头了」——论文终于中了。</p>
-<p>在公司完成的这篇历时一年半投稿 4 次的论文，从 2022
-年投稿被审稿人喷，到 2024 年 rebuttal
-里我喷审稿人，见证了许多。这同一篇文章上一次投稿被接收为
-poster，让我得以第一次参加学术会议，如今又为我带来不到半年后再次以长文作者身份参加学术会议的机会。而我的毕业论文，在毕业后我又与优秀且耐心的合作者们继续完善，历经一次
-major revision
-后终于在去年年底被领域顶会接收（可惜两个会议时间相隔太近，这篇文章的会议只能请合作者前往参加了）。</p>
-<p>两年来，业余生活也算“沧海桑田”。2022
-上半年于毕业论文之外，在音乐和乐队上投入了巨量精力，当时的若干演出视频如今还可在
-b 站看到。2023
-年，经历了疾病的转折，在乐器演奏上几乎完全懈怠了，转向了单纯的音乐欣赏。“感谢”吴氏策划，这一年成为我给国家大剧院送钱最多的一年，古典音乐欣赏水平也上了几个台阶，有了自己最喜欢的歌剧唱段，多次在长途旅程中反复聆听。</p>
-<p>2022 下半年出差期间看了《边缘行者》，受其启发买了《赛博朋克
-2077》，年底通关了全部结局，这可能是将近十年来我第一个通关的 3A
-大作。2023 又买了 Switch
-和最新两部《塞尔达传说》，大半年拖拖拉拉，今年过年后的一个周末终于连续通关《王国之泪》和《旷野之息》——没错，这两部是并行玩的。2023
-TGA 后开始玩《博德之门
-3》，上个月也通关了。工作后业余时间更加自由，加上一台自己装的高性能 ITX
-和人生中第一台游戏机，终于无拘无束大过游戏瘾。这期间，还接着 2010
-年存的档打通了初中玩的《天之痕》，以硬核模式不知道第几周目再次通关《Disco
-Elysium》并上传几条游戏视频到 b
-站收获了一些好评，还花一个周末飞速通关「语言学小游戏」《巴别塔圣歌》。</p>
-<p>去年又重新启用了我尘封已久的护照，逮着东南亚和中亚的免签国家，五一在吴哥窟暴晒，十一在哈萨克乌兹别克猛吃。啊，至今晚上临睡前饿了，还会想念塔什干手抓饭中心的
-Pilaf，和暹粒 Malis
-的高棉菜。今年更是借着开会，在爱丁堡他乡遇故知，下次开会还有望在京都继续他乡遇故知。</p>
-<p>毕业后的第一个小章节似乎要告一段落，这或许正是重启博客更新的最佳时机。</p>
+<hr />
+<p>作者：史丹利复合田 来源：CSDN
+原文：https://blog.csdn.net/tsyccnh/article/details/79163834
+版权声明：本文为博主原创文章，转载请附上博文链接！</p>
+]]></content>
+      <categories>
+        <category>ML</category>
+      </categories>
+      <tags>
+        <tag>交叉熵</tag>
+        <tag>理论</tag>
+        <tag>直觉</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一年后</title>
+    <url>/2021/03/09/%E4%B8%80%E5%B9%B4%E5%90%8E/</url>
+    <content><![CDATA[<p>快一年没有更新blog了。一年来发生了很多，生活和想法也有了若干变化。近来感觉记性越来越不好了，有些未来或许有用但又没什么理由/门类写到OneNote里的东西，似乎还是可以放在这里。</p>
+<p>之后或许会多写一些这样的流水账，也会有些可以公开的技术文章，但写长文很累，或许有空会写一篇吧。毕竟上周法语课学了一句谚语，«
+Petit à petit, l'oiseau fait son nid. »</p>
+<p>春天来了，上上周下雪前拍到了第一朵迎春花，今天逸夫馆前的山桃，顶端的枝条也零星开了几多小花。春天真好，每天都觉得充满希望。</p>
+<span id="more"></span>
+<figure>
+<img data-src="2-27-迎春.jpg" alt="2月27日的迎春花" />
+<figcaption aria-hidden="true">2月27日的迎春花</figcaption>
+</figure>
+<figure>
+<img data-src="3-8-山桃.jpg" alt="3月8日的山桃" />
+<figcaption aria-hidden="true">3月8日的山桃</figcaption>
+</figure>
 ]]></content>
       <categories>
         <category>随笔</category>
       </categories>
       <tags>
-        <tag>论文</tag>
-        <tag>游戏</tag>
-        <tag>音乐</tag>
-        <tag>旅游</tag>
-        <tag>生活</tag>
+        <tag>2021赏花</tag>
       </tags>
   </entry>
   <entry>
@@ -2333,8 +2357,8 @@ Yoshua Bengio, and Aaron Courville. Deep learning. MIT press, 2016.</p>
         <category>ML</category>
       </categories>
       <tags>
-        <tag>交叉熵</tag>
         <tag>优化</tag>
+        <tag>交叉熵</tag>
         <tag>深度学习</tag>
         <tag>损失函数</tag>
         <tag>KL散度</tag>
@@ -2401,6 +2425,100 @@ class="math inline">\((i,j)\)</span>二元组当key就行，传统写C/C++一般
         <tag>面经</tag>
         <tag>哈希表</tag>
         <tag>DP</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>哈希表碰撞（溢出）概率计算</title>
+    <url>/2021/03/09/%E5%93%88%E5%B8%8C%E8%A1%A8%E7%A2%B0%E6%92%9E%E6%A6%82%E7%8E%87%E8%AE%A1%E7%AE%97/</url>
+    <content><![CDATA[<p>这篇文章简单谈谈目前业界使用的密码学库中，是如何计算哈希表（Hash
+table）的桶（bin）碰撞（溢出）概率的。</p>
+<p>昨天遇到这样一个问题：在GitHub中，<a
+href="https://github.com/osu-crypto/BaRK-OPRF">osu-crypto/BaRK-OPRF</a>这个密码学相关repo中，有如下<a
+href="https://github.com/osu-crypto/BaRK-OPRF/blob/6fe35ee9a38a5dcfbad171678e68fa0b539b1589/bOPRFlib/Common/Defines.cpp#L148">代码</a>：</p>
+<span id="more"></span>
+<figure class="highlight cpp"><figcaption><span>BaRK-OPRF/bOPRFlib/Common/Defines.cpp</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">double</span> <span class="title">getBinOverflowProb</span><span class="params">(u64 numBins, u64 numBalls, u64 binSize, <span class="type">double</span> epsilon = <span class="number">0.0001</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (numBalls &lt;= binSize)</span><br><span class="line">        <span class="keyword">return</span> std::numeric_limits&lt;<span class="type">double</span>&gt;::<span class="built_in">max</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (numBalls &gt; <span class="built_in">unsigned</span>(<span class="number">-1</span>))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">auto</span> msg = (<span class="string">&quot;boost::math::binomial_coefficient(...) only supports &quot;</span> + std::<span class="built_in">to_string</span>(<span class="built_in">sizeof</span>(<span class="type">unsigned</span>) * <span class="number">8</span>) + <span class="string">&quot; bit inputs which was exceeded.&quot;</span> LOCATION);</span><br><span class="line">        std::cout &lt;&lt; msg &lt;&lt; std::endl;</span><br><span class="line">        <span class="keyword">throw</span> std::<span class="built_in">runtime_error</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">typedef</span> boost::multiprecision::number&lt;boost::multiprecision::backends::cpp_bin_float&lt;<span class="number">16</span>&gt;&gt; T;</span><br><span class="line">    T sum = <span class="number">0.0</span>;</span><br><span class="line">    T sec = <span class="number">0.0</span>;<span class="comment">// minSec + 1;</span></span><br><span class="line">    T diff = <span class="number">1</span>;</span><br><span class="line">    u64 i = binSize + <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (diff &gt; <span class="built_in">T</span>(epsilon) &amp;&amp; numBalls &gt;= i <span class="comment">/*&amp;&amp; sec &gt; minSec*/</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        sum += numBins * boost::math::<span class="built_in">binomial_coefficient</span>&lt;T&gt;(numBalls, i)</span><br><span class="line">            * boost::multiprecision::<span class="built_in">pow</span>(<span class="built_in">T</span>(<span class="number">1.0</span>) / numBins, i) * boost::multiprecision::<span class="built_in">pow</span>(<span class="number">1</span> - <span class="built_in">T</span>(<span class="number">1.0</span>) / numBins, numBalls - i);</span><br><span class="line"></span><br><span class="line">        T sec2 = boost::multiprecision::<span class="built_in">log2</span>(sum);</span><br><span class="line">        diff = boost::multiprecision::<span class="built_in">abs</span>(sec - sec2);</span><br><span class="line">        sec = sec2;</span><br><span class="line"></span><br><span class="line">        i++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> std::<span class="built_in">max</span>&lt;<span class="type">double</span>&gt;(<span class="number">0</span>, (<span class="type">double</span>)-sec);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从函数名能看出是在计算哈希表的桶溢出概率（溢出和碰撞其实是一个意思），但就是这个简简单单的<code>while</code>循环，看的人云里雾里。但稍加分析，我们就可以还原出来这段代码其实是在计算这样一个式子：
+<span class="math display">\[P\{Hash\; overflows\}=numBins \cdot
+\sum_{k=binSize+1}^{numBalls}C_{numBalls}^{i}(1/numBins)^i(1-1/numBins)^{numBalls
+- i}.\]</span> 最后的输出结果其实是<span class="math inline">\(-\log_2
+P\{Hash\;
+overflows\}\)</span>，至于为何如此，后文详谈。先来说说这个式子是怎么来的。</p>
+<p>为了方便叙述，我们规范化一下这个问题。</p>
+<h3 id="问题设置">问题设置</h3>
+<p>一个哈希表可以看成是<span
+class="math inline">\(M\)</span>个桶（bin），元素可以看成放进桶里的球（ball），假设每个桶容量（size）相同且固定为<span
+class="math inline">\(k\)</span>（很多情况下<span
+class="math inline">\(k=1\)</span>）。假设我们已知共有<span
+class="math inline">\(N\)</span>个元素（球）要放进桶里，那么哈希表的碰撞概率就等价于</p>
+<blockquote>
+<p><span class="math inline">\(N\)</span>个球放进<span
+class="math inline">\(M\)</span>个桶里，每个桶最多放<span
+class="math inline">\(k\)</span>个球，有任意一个桶溢出（放了超过<span
+class="math inline">\(k\)</span>个球）的概率。</p>
+</blockquote>
+<p>下面分步求解。</p>
+<h3 id="选定一个桶bin_j里面放了ileq-n个球的概率">选定一个桶<span
+class="math inline">\(bin_j\)</span>，里面放了<span
+class="math inline">\(i\leq N\)</span>个球的概率？</h3>
+<p>这就是一个简单的二项分布：重复<span
+class="math inline">\(N\)</span>次把球放进桶的实验，成功（球放进桶<span
+class="math inline">\(bin_j\)</span>）的次数为<span
+class="math inline">\(i\)</span>的概率为 <span
+class="math display">\[P\{X=i\}=C_{N}^{i}(1/M)^i(1-1/M)^{N -
+i},\]</span> 不用多说，请查阅“二项分布”相关资料。</p>
+<p>一定注意，这里的前提是我们选定了一个桶，就这个桶而言讨论“成功”。</p>
+<h3 id="选定一个桶bin_j这个桶溢出的概率">选定一个桶<span
+class="math inline">\(bin_j\)</span>，这个桶溢出的概率？</h3>
+<p>溢出，即这个桶里放了<span
+class="math inline">\(i&gt;k\)</span>个球，那么对上面的<span
+class="math inline">\(P\\{X=i\\}\)</span>求和 <span
+class="math display">\[P\{bin_j\; overflows\}=\sum_{i=k+1}^{N}
+P\{X=i\}=\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}.\]</span>
+是不是已经看起来很像最开始的式子了？但是还差个系数<span
+class="math inline">\(M\)</span>，这是哪里来的？</p>
+<h3
+id="任意一个桶溢出的概率的上界">任意一个桶溢出的概率（的上界）？</h3>
+<p>前面的讨论都是基于已经选定了某一个桶，但事实上我们有<span
+class="math inline">\(M\)</span>个桶，其中任意一个溢出都算哈希表溢出，那么我们要用的工具就是取并集。因此哈希表溢出概率为
+<span class="math display">\[P\{Hash\;
+overflows\}=P\{\cup_{j\in[M]}bin_j\; overflows\}.\]</span></p>
+<p>那么问题来了，这个并集怎么算呢？</p>
+<p>事实上，很多情况下我们讨论哈希表溢出问题，并不需要确切地知道这个数值，而是要利用这个概率估计哈希表容量应该有多大。我们只需要估计溢出概率的上界，只要容量能满足这个上界，就可以满足我们对哈希表的要求。</p>
+<p>为了解决事件的并集概率问题，我们需要借助布尔不等式（Boole's
+inequality），也叫联合边界（Union Bound）（其实我之前只知道Union
+Bound这个名字，其他都是现查的）。其实很简单，事件并集的概率不超过单独事件发生的概率之和（不要求事件相互独立）。那么上式进一步化为
+<span class="math display">\[\begin{aligned}
+P\{Hash overflows\}&amp;=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq
+\sum_{j=1}^{M}P\{bin_j\; overflows\}\\
+&amp;=\sum_{j=1}^{M}\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}\\
+&amp;=M\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}.
+\end{aligned}
+\]</span> 这不就是我们要求的式子吗？</p>
+<p>不过代码里为了加速，用了一个小量<code>epsilon</code>控制精度，如果精度够了就可以及时截断。</p>
+<h3 id="为什么要取负对数">为什么要取负对数？</h3>
+<p>这个问题要继续往代码下面看。在<a
+href="https://github.com/osu-crypto/BaRK-OPRF/blob/6fe35ee9a38a5dcfbad171678e68fa0b539b1589/bOPRFlib/Common/Defines.cpp#L202">这里</a>：</p>
+<figure class="highlight cpp"><figcaption><span>BaRK-OPRF/bOPRFlib/Common/Defines.cpp</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="function">u64 <span class="title">get_bin_size</span><span class="params">(u64 numBins, u64 numBalls, u64 statSecParam)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> B = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, numBalls / numBins);</span><br><span class="line"></span><br><span class="line">    <span class="type">double</span> currentProb = <span class="number">0</span>;</span><br><span class="line">    u64 step = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span> doubling = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (currentProb &lt; statSecParam || step &gt; <span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span> (!step)</span><br><span class="line">            <span class="keyword">throw</span> std::<span class="built_in">runtime_error</span>(LOCATION);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (statSecParam &gt; currentProb)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">if</span> (doubling) step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step * <span class="number">2</span>);</span><br><span class="line">            <span class="keyword">else</span>          step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step / <span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">            B += step;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">        &#123;</span><br><span class="line">            doubling = <span class="literal">false</span>;</span><br><span class="line">            step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step / <span class="number">2</span>);</span><br><span class="line">            B -= step;</span><br><span class="line">        &#125;</span><br><span class="line">        currentProb = <span class="built_in">getBinOverflowProb</span>(numBins, numBalls, B);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> B;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里的<code>statSecParam</code>是密码学里的统计安全参数，类似经常听说的SHA256、SHA512里的数字，数字代表bit位数，越大越安全。在这个实现里，这一参数取值范围是<code>uint64</code>的非负整数。</p>
+<p>安全参数越大越安全，密码学里碰撞概率（两个本来不同的明文Hash之后结果相同，其实也就是溢出概率）越小越安全；安全参数是非负整数，概率是<span
+class="math inline">\([0,1]\)</span>间的实数。如何建立映射关系呢？很简单，就是对概率取负对数，就变成了<span
+class="math inline">\([0,\infty)\)</span>的实数，而且越大越安全。这就和安全参数产生了对应关系。</p>
+<p>因此，在前面算概率时，就直接返回这个映射过的“概率”，稍后求哈希表容量时，就可以直接和安全参数比较了。</p>
+<h3 id="题外话">题外话</h3>
+<p>这个问题其实最早是我在CMU的15-451/651
+Algorithms课上，Sleator给我们布置的作业题。当时我真是毫无头绪，多亏了John和Wael两位大哥认真讲解，我才搞明白为啥要用那个之前听都没听说过的Union
+Bound。没想到这次又在实际中遇到了这个问题，第一次发现Sleator讲的东西是有用的，而不是为了难为我们。</p>
+<p>离开美国时走得太仓促，很多东西都没能带走，似乎Algo的lecture
+notes我是扔下了。想到这里，多少有点惋惜。只能安慰自己，东隅已逝桑榆非晚。</p>
+]]></content>
+      <categories>
+        <category>数学</category>
+      </categories>
+      <tags>
+        <tag>哈希表</tag>
+        <tag>密码学</tag>
+        <tag>概率</tag>
+        <tag>碰撞</tag>
       </tags>
   </entry>
   <entry>
@@ -2617,187 +2735,6 @@ class="citation" data-cites="风云钢炮">@风云钢炮</span></a>
       </tags>
   </entry>
   <entry>
-    <title>一年后</title>
-    <url>/2021/03/09/%E4%B8%80%E5%B9%B4%E5%90%8E/</url>
-    <content><![CDATA[<p>快一年没有更新blog了。一年来发生了很多，生活和想法也有了若干变化。近来感觉记性越来越不好了，有些未来或许有用但又没什么理由/门类写到OneNote里的东西，似乎还是可以放在这里。</p>
-<p>之后或许会多写一些这样的流水账，也会有些可以公开的技术文章，但写长文很累，或许有空会写一篇吧。毕竟上周法语课学了一句谚语，«
-Petit à petit, l'oiseau fait son nid. »</p>
-<p>春天来了，上上周下雪前拍到了第一朵迎春花，今天逸夫馆前的山桃，顶端的枝条也零星开了几多小花。春天真好，每天都觉得充满希望。</p>
-<span id="more"></span>
-<figure>
-<img data-src="2-27-迎春.jpg" alt="2月27日的迎春花" />
-<figcaption aria-hidden="true">2月27日的迎春花</figcaption>
-</figure>
-<figure>
-<img data-src="3-8-山桃.jpg" alt="3月8日的山桃" />
-<figcaption aria-hidden="true">3月8日的山桃</figcaption>
-</figure>
-]]></content>
-      <categories>
-        <category>随笔</category>
-      </categories>
-      <tags>
-        <tag>2021赏花</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>哈希表碰撞（溢出）概率计算</title>
-    <url>/2021/03/09/%E5%93%88%E5%B8%8C%E8%A1%A8%E7%A2%B0%E6%92%9E%E6%A6%82%E7%8E%87%E8%AE%A1%E7%AE%97/</url>
-    <content><![CDATA[<p>这篇文章简单谈谈目前业界使用的密码学库中，是如何计算哈希表（Hash
-table）的桶（bin）碰撞（溢出）概率的。</p>
-<p>昨天遇到这样一个问题：在GitHub中，<a
-href="https://github.com/osu-crypto/BaRK-OPRF">osu-crypto/BaRK-OPRF</a>这个密码学相关repo中，有如下<a
-href="https://github.com/osu-crypto/BaRK-OPRF/blob/6fe35ee9a38a5dcfbad171678e68fa0b539b1589/bOPRFlib/Common/Defines.cpp#L148">代码</a>：</p>
-<span id="more"></span>
-<figure class="highlight cpp"><figcaption><span>BaRK-OPRF/bOPRFlib/Common/Defines.cpp</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">double</span> <span class="title">getBinOverflowProb</span><span class="params">(u64 numBins, u64 numBalls, u64 binSize, <span class="type">double</span> epsilon = <span class="number">0.0001</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (numBalls &lt;= binSize)</span><br><span class="line">        <span class="keyword">return</span> std::numeric_limits&lt;<span class="type">double</span>&gt;::<span class="built_in">max</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (numBalls &gt; <span class="built_in">unsigned</span>(<span class="number">-1</span>))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">auto</span> msg = (<span class="string">&quot;boost::math::binomial_coefficient(...) only supports &quot;</span> + std::<span class="built_in">to_string</span>(<span class="built_in">sizeof</span>(<span class="type">unsigned</span>) * <span class="number">8</span>) + <span class="string">&quot; bit inputs which was exceeded.&quot;</span> LOCATION);</span><br><span class="line">        std::cout &lt;&lt; msg &lt;&lt; std::endl;</span><br><span class="line">        <span class="keyword">throw</span> std::<span class="built_in">runtime_error</span>(msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">typedef</span> boost::multiprecision::number&lt;boost::multiprecision::backends::cpp_bin_float&lt;<span class="number">16</span>&gt;&gt; T;</span><br><span class="line">    T sum = <span class="number">0.0</span>;</span><br><span class="line">    T sec = <span class="number">0.0</span>;<span class="comment">// minSec + 1;</span></span><br><span class="line">    T diff = <span class="number">1</span>;</span><br><span class="line">    u64 i = binSize + <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (diff &gt; <span class="built_in">T</span>(epsilon) &amp;&amp; numBalls &gt;= i <span class="comment">/*&amp;&amp; sec &gt; minSec*/</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        sum += numBins * boost::math::<span class="built_in">binomial_coefficient</span>&lt;T&gt;(numBalls, i)</span><br><span class="line">            * boost::multiprecision::<span class="built_in">pow</span>(<span class="built_in">T</span>(<span class="number">1.0</span>) / numBins, i) * boost::multiprecision::<span class="built_in">pow</span>(<span class="number">1</span> - <span class="built_in">T</span>(<span class="number">1.0</span>) / numBins, numBalls - i);</span><br><span class="line"></span><br><span class="line">        T sec2 = boost::multiprecision::<span class="built_in">log2</span>(sum);</span><br><span class="line">        diff = boost::multiprecision::<span class="built_in">abs</span>(sec - sec2);</span><br><span class="line">        sec = sec2;</span><br><span class="line"></span><br><span class="line">        i++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> std::<span class="built_in">max</span>&lt;<span class="type">double</span>&gt;(<span class="number">0</span>, (<span class="type">double</span>)-sec);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>从函数名能看出是在计算哈希表的桶溢出概率（溢出和碰撞其实是一个意思），但就是这个简简单单的<code>while</code>循环，看的人云里雾里。但稍加分析，我们就可以还原出来这段代码其实是在计算这样一个式子：
-<span class="math display">\[P\{Hash\; overflows\}=numBins \cdot
-\sum_{k=binSize+1}^{numBalls}C_{numBalls}^{i}(1/numBins)^i(1-1/numBins)^{numBalls
-- i}.\]</span> 最后的输出结果其实是<span class="math inline">\(-\log_2
-P\{Hash\;
-overflows\}\)</span>，至于为何如此，后文详谈。先来说说这个式子是怎么来的。</p>
-<p>为了方便叙述，我们规范化一下这个问题。</p>
-<h3 id="问题设置">问题设置</h3>
-<p>一个哈希表可以看成是<span
-class="math inline">\(M\)</span>个桶（bin），元素可以看成放进桶里的球（ball），假设每个桶容量（size）相同且固定为<span
-class="math inline">\(k\)</span>（很多情况下<span
-class="math inline">\(k=1\)</span>）。假设我们已知共有<span
-class="math inline">\(N\)</span>个元素（球）要放进桶里，那么哈希表的碰撞概率就等价于</p>
-<blockquote>
-<p><span class="math inline">\(N\)</span>个球放进<span
-class="math inline">\(M\)</span>个桶里，每个桶最多放<span
-class="math inline">\(k\)</span>个球，有任意一个桶溢出（放了超过<span
-class="math inline">\(k\)</span>个球）的概率。</p>
-</blockquote>
-<p>下面分步求解。</p>
-<h3 id="选定一个桶bin_j里面放了ileq-n个球的概率">选定一个桶<span
-class="math inline">\(bin_j\)</span>，里面放了<span
-class="math inline">\(i\leq N\)</span>个球的概率？</h3>
-<p>这就是一个简单的二项分布：重复<span
-class="math inline">\(N\)</span>次把球放进桶的实验，成功（球放进桶<span
-class="math inline">\(bin_j\)</span>）的次数为<span
-class="math inline">\(i\)</span>的概率为 <span
-class="math display">\[P\{X=i\}=C_{N}^{i}(1/M)^i(1-1/M)^{N -
-i},\]</span> 不用多说，请查阅“二项分布”相关资料。</p>
-<p>一定注意，这里的前提是我们选定了一个桶，就这个桶而言讨论“成功”。</p>
-<h3 id="选定一个桶bin_j这个桶溢出的概率">选定一个桶<span
-class="math inline">\(bin_j\)</span>，这个桶溢出的概率？</h3>
-<p>溢出，即这个桶里放了<span
-class="math inline">\(i&gt;k\)</span>个球，那么对上面的<span
-class="math inline">\(P\\{X=i\\}\)</span>求和 <span
-class="math display">\[P\{bin_j\; overflows\}=\sum_{i=k+1}^{N}
-P\{X=i\}=\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}.\]</span>
-是不是已经看起来很像最开始的式子了？但是还差个系数<span
-class="math inline">\(M\)</span>，这是哪里来的？</p>
-<h3
-id="任意一个桶溢出的概率的上界">任意一个桶溢出的概率（的上界）？</h3>
-<p>前面的讨论都是基于已经选定了某一个桶，但事实上我们有<span
-class="math inline">\(M\)</span>个桶，其中任意一个溢出都算哈希表溢出，那么我们要用的工具就是取并集。因此哈希表溢出概率为
-<span class="math display">\[P\{Hash\;
-overflows\}=P\{\cup_{j\in[M]}bin_j\; overflows\}.\]</span></p>
-<p>那么问题来了，这个并集怎么算呢？</p>
-<p>事实上，很多情况下我们讨论哈希表溢出问题，并不需要确切地知道这个数值，而是要利用这个概率估计哈希表容量应该有多大。我们只需要估计溢出概率的上界，只要容量能满足这个上界，就可以满足我们对哈希表的要求。</p>
-<p>为了解决事件的并集概率问题，我们需要借助布尔不等式（Boole's
-inequality），也叫联合边界（Union Bound）（其实我之前只知道Union
-Bound这个名字，其他都是现查的）。其实很简单，事件并集的概率不超过单独事件发生的概率之和（不要求事件相互独立）。那么上式进一步化为
-<span class="math display">\[\begin{aligned}
-P\{Hash overflows\}&amp;=P\{\cup_{j\in[M]}bin_j\; overflows\}\leq
-\sum_{j=1}^{M}P\{bin_j\; overflows\}\\
-&amp;=\sum_{j=1}^{M}\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}\\
-&amp;=M\sum_{i=k+1}^{N}C_{N}^{i}(1/M)^i(1-1/M)^{N - i}.
-\end{aligned}
-\]</span> 这不就是我们要求的式子吗？</p>
-<p>不过代码里为了加速，用了一个小量<code>epsilon</code>控制精度，如果精度够了就可以及时截断。</p>
-<h3 id="为什么要取负对数">为什么要取负对数？</h3>
-<p>这个问题要继续往代码下面看。在<a
-href="https://github.com/osu-crypto/BaRK-OPRF/blob/6fe35ee9a38a5dcfbad171678e68fa0b539b1589/bOPRFlib/Common/Defines.cpp#L202">这里</a>：</p>
-<figure class="highlight cpp"><figcaption><span>BaRK-OPRF/bOPRFlib/Common/Defines.cpp</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="function">u64 <span class="title">get_bin_size</span><span class="params">(u64 numBins, u64 numBalls, u64 statSecParam)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> B = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, numBalls / numBins);</span><br><span class="line"></span><br><span class="line">    <span class="type">double</span> currentProb = <span class="number">0</span>;</span><br><span class="line">    u64 step = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span> doubling = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (currentProb &lt; statSecParam || step &gt; <span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span> (!step)</span><br><span class="line">            <span class="keyword">throw</span> std::<span class="built_in">runtime_error</span>(LOCATION);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (statSecParam &gt; currentProb)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">if</span> (doubling) step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step * <span class="number">2</span>);</span><br><span class="line">            <span class="keyword">else</span>          step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step / <span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">            B += step;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">        &#123;</span><br><span class="line">            doubling = <span class="literal">false</span>;</span><br><span class="line">            step = std::<span class="built_in">max</span>&lt;u64&gt;(<span class="number">1</span>, step / <span class="number">2</span>);</span><br><span class="line">            B -= step;</span><br><span class="line">        &#125;</span><br><span class="line">        currentProb = <span class="built_in">getBinOverflowProb</span>(numBins, numBalls, B);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> B;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这里的<code>statSecParam</code>是密码学里的统计安全参数，类似经常听说的SHA256、SHA512里的数字，数字代表bit位数，越大越安全。在这个实现里，这一参数取值范围是<code>uint64</code>的非负整数。</p>
-<p>安全参数越大越安全，密码学里碰撞概率（两个本来不同的明文Hash之后结果相同，其实也就是溢出概率）越小越安全；安全参数是非负整数，概率是<span
-class="math inline">\([0,1]\)</span>间的实数。如何建立映射关系呢？很简单，就是对概率取负对数，就变成了<span
-class="math inline">\([0,\infty)\)</span>的实数，而且越大越安全。这就和安全参数产生了对应关系。</p>
-<p>因此，在前面算概率时，就直接返回这个映射过的“概率”，稍后求哈希表容量时，就可以直接和安全参数比较了。</p>
-<h3 id="题外话">题外话</h3>
-<p>这个问题其实最早是我在CMU的15-451/651
-Algorithms课上，Sleator给我们布置的作业题。当时我真是毫无头绪，多亏了John和Wael两位大哥认真讲解，我才搞明白为啥要用那个之前听都没听说过的Union
-Bound。没想到这次又在实际中遇到了这个问题，第一次发现Sleator讲的东西是有用的，而不是为了难为我们。</p>
-<p>离开美国时走得太仓促，很多东西都没能带走，似乎Algo的lecture
-notes我是扔下了。想到这里，多少有点惋惜。只能安慰自己，东隅已逝桑榆非晚。</p>
-]]></content>
-      <categories>
-        <category>数学</category>
-      </categories>
-      <tags>
-        <tag>哈希表</tag>
-        <tag>密码学</tag>
-        <tag>概率</tag>
-        <tag>碰撞</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>奇怪的修乐器经历</title>
-    <url>/2021/04/19/%E5%A5%87%E6%80%AA%E7%9A%84%E4%BF%AE%E4%B9%90%E5%99%A8%E7%BB%8F%E5%8E%86/</url>
-    <content><![CDATA[<p>从小我就深受姥爷影响，什么东西坏了都喜欢试着自己修，也常常能修好。小学好像修过小饭桌的椅子，初中时修的最多的是改正带，当时技术娴熟到时不时帮同学修。修过的钢笔、中性笔等等更是数不胜数。高中之后生活逐渐粗糙，修东西的频率越来越低，但没想到在乐队里，还得时不时修修乐器。</p>
-<p>恰好今天修了个奇怪的问题，就简单写写近一年来的修乐器经历，都挺奇怪的。</p>
-<span id="more"></span>
-<h3 id="年久失修的中音单簧管">年久失修的中音单簧管</h3>
-<p>去年从美国回来，归队以后发现黑管声部竟然如此壮大了，三声部塞满了刚升一队的小朋友们，一二声部也有点坐不下了。作为老人，就主动腾腾地方，去吹中音单簧管了（其实我本来想吹低黑，但没抢过前首席——她之前也很欣赏小号来着，怎么现在跟我一样开始喜欢低音乐器了）。</p>
-<p>这根中音单簧管相当上乘，布菲RC银牌，但是中音单簧管（中黑）这种乐器实在一言难尽（请参考<a
-href="https://youtu.be/q2OJ8eTCPZ4">此视频</a>），常常缺乏存在感，所以如果不是编制如此庞大一般没人吹。结果在我这次接手之前，这件乐器已经两年没人动过了。木管如果很久不吹是需要上油保养的，但显然队里没人管过这件事，所以刚打开就看到管身都发霉变白了，后来还发现上手管裂了将近10cm的缝...修管师傅来了都诧异我是怎么吹响这玩意儿的。当然今天不讲裂缝，讲讲另一个毛病。</p>
-<p>中黑在机械结构上和降B黑管有很大差异，一个最明显的地方是泛音键控制两个孔而非一个，正常情况下两个孔同时最多打开一个，开哪个由la键（正面最上面的键）决定，目的是调节降si的音高（这也是为了适应降B黑管的指法，事实上中黑在下手管加了一个键可以吹降si，或许还更准一点）。以上这段话都是我在修下文这个奇怪的毛病时自己研究出来的。</p>
-<p>中黑刚上手，我就发现开了泛音键以后经常吹不动，物理意义上的吹不动——好像在吹一根实心木棍，就是振动不起来。当时还完全不明白这就是漏气的重要特征，也还没发现管裂了。就在这种艰苦条件下，我硬是能勉强吹响，还能试图跟大家一起合拍，但吹出来的质量完全是学员班水平...更奇怪的时，这个毛病时有时无，有时候就还能吹，有时候就完全吹不响，非常离谱。</p>
-<p>后来摸索清楚了机械结构，逐渐把问题缩小到了泛音键上。这两个孔的盖子就像跷跷板，连在同一根杆的两端，按下la键会抬起跷跷板的一端，另一端的孔就会合上，松开以后一根小弹簧会抬起另一端，进而换另一个孔合上。但因为温度等等的原因，这个跷跷板的弹簧没有足够的弹力抬起应该抬起的一端，导致开错了孔，最终导致意外的漏气。时好时坏也是因为同样原因——如果我从未用过la键，那么每次都会打开正确的孔，一旦按过一次la键，那个打开的孔就再也合不上了，因此吹不响；过一会儿可能因为无意碰到之类的原因，这个孔又合上了，就有好了。</p>
-<p>发现问题是最难的，修起来其实还算容易，拿一个小螺丝刀松松杆上的螺丝，减小杆回弹的阻力，弹簧就有足够的弹力把跷跷板推回原位了。</p>
-<h3 id="忒修斯的降b木管">忒修斯的降B木管</h3>
-<p>升一队也一段时间了，但因为上学期一直在吹中黑，队里就没给我分降B木管。但这学期中国曲子多，全都没写中黑，二声部又有点缺人，于是中国曲子我又回来吹降B。但我自己也一直没买木管，所以还在用大约14年前买的胶管（不得不说，虽然这个胶管没什么牌子，但音色还真可以，至少以我目前的水平，吹它和吹木管感受到的音色差异不算大，主要差异还是木管吹起来更通畅更灵活一点）。</p>
-<p>然而这学期还带了一个徒弟，发现徒弟的管比我的还好...而且我的胶管也实在是太老了，很多磨损之类的毛病，修管师傅都说没救了。于是三天前队里终于还是给我分了个贵重乐器（相对贵重，其实不过是布菲C12而已，但比起去年新买的雅马哈木管应该还是要好一些），那天试音没吹超高音区，感觉没啥问题。不过这根管应该也有一年半（算上疫情）没人用过了。</p>
-<p>今天背歌唱祖国的谱子，想试试新到手的木管。歌唱祖国奇高无比，主歌基本一直浮在超高音区，吹高音mi时，突然听到奇怪的振动声，高音fa也是，但re和sol就没有——只要下手管有键按住就没事，如果只有上手管按键就有奇怪的振动。这个问题如此离谱，以至于我吹了这么多年黑管从来没听说过。</p>
-<p>为了找到问题出在哪，我从二节开始，逐级向下，把木管和我的胶管拼起来吹（上面是木管下面是胶管），发现如果用我的下手管就没问题，一换上木管的下手管就出毛病，但是下手管并不漏气，吹普通音区也没有任何不正常——离谱。考虑到超高音区的奇怪振动声，我初步判断应该是某个部件的固有频率和超高音相近导致共振。结合高音re和sol没有问题的事实，我尝试在吹mi的时候按住下手管的几个键试试，最终锁定了是低音mi键年久松动，恰好和超高音区产生共振。</p>
-<p>问题找到了，但是怎么修呢？换一个键子不太现实，解决共振问题要么就在这个键子上贴一块东西或者磨掉一部分改变固有频率，但都会对乐器本身大动干戈，不太好。这时我突然想到，队里有一个木管和这根管是同一批买进的同型号，只要换一下这两个乐器的下手管说不定就好了。更进一步，上周这一批管都被送去保养了，说不定是修管师傅装反了盒子，也许没问题的下手管才是原来属于这根管的。</p>
-<p>一试果然没问题，但是另一个哲学问题出现了：是什么决定了一根黑管是它本身？既然换笛头、二节、喇叭口都是常规操作，那么是上手管和下手管决定吗？但是我对调了两根管的下手管后，它们还是原来的自己吗？</p>
-]]></content>
-      <categories>
-        <category>音乐</category>
-      </categories>
-      <tags>
-        <tag>乐器</tag>
-        <tag>单簧管</tag>
-        <tag>修理</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>法语基本读音规则表</title>
-    <url>/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/</url>
-    <content><![CDATA[<p>主体基于清华大学单飞老师课件，添加了少量未收录的辅音字母。</p>
-<span id="more"></span>
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_1.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_2.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_3.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_4.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_5.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_6.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_7.png" class="">
-]]></content>
-      <categories>
-        <category>外语</category>
-      </categories>
-      <tags>
-        <tag>读音规则</tag>
-        <tag>法语</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>第一篇blog</title>
-    <url>/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/</url>
-    <content><![CDATA[<h2 id="这是我的第一篇blog">这是我的第一篇blog</h2>
-<p>测试图片插入</p>
-<img data-src="/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/test.jpg" class="" title="测试">
-]]></content>
-      <categories>
-        <category>其他</category>
-      </categories>
-  </entry>
-  <entry>
     <title>基于Nginx配置Web视频流媒体服务器</title>
     <url>/2019/03/05/%E5%9F%BA%E4%BA%8ENginx%E9%85%8D%E7%BD%AEWeb%E8%A7%86%E9%A2%91%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8/</url>
     <content><![CDATA[<p>本来在一心折腾基于Hexo的自建博客，恰好室友提出这样一个需求：在自己的作品集里放一个二维码，扫一下就可以转到一个网页播放自己的视频，但是又要求不能有广告，因此商业性质的视频网站都不能使用。手头刚好有一个AWS的服务器，于是决心尝试一下这类还没碰过的技术。</p>
@@ -2903,6 +2840,37 @@ href="https://www.cnblogs.com/godtrue/p/5843093.html">JS-获取URL请求参数</
       </tags>
   </entry>
   <entry>
+    <title>奇怪的修乐器经历</title>
+    <url>/2021/04/19/%E5%A5%87%E6%80%AA%E7%9A%84%E4%BF%AE%E4%B9%90%E5%99%A8%E7%BB%8F%E5%8E%86/</url>
+    <content><![CDATA[<p>从小我就深受姥爷影响，什么东西坏了都喜欢试着自己修，也常常能修好。小学好像修过小饭桌的椅子，初中时修的最多的是改正带，当时技术娴熟到时不时帮同学修。修过的钢笔、中性笔等等更是数不胜数。高中之后生活逐渐粗糙，修东西的频率越来越低，但没想到在乐队里，还得时不时修修乐器。</p>
+<p>恰好今天修了个奇怪的问题，就简单写写近一年来的修乐器经历，都挺奇怪的。</p>
+<span id="more"></span>
+<h3 id="年久失修的中音单簧管">年久失修的中音单簧管</h3>
+<p>去年从美国回来，归队以后发现黑管声部竟然如此壮大了，三声部塞满了刚升一队的小朋友们，一二声部也有点坐不下了。作为老人，就主动腾腾地方，去吹中音单簧管了（其实我本来想吹低黑，但没抢过前首席——她之前也很欣赏小号来着，怎么现在跟我一样开始喜欢低音乐器了）。</p>
+<p>这根中音单簧管相当上乘，布菲RC银牌，但是中音单簧管（中黑）这种乐器实在一言难尽（请参考<a
+href="https://youtu.be/q2OJ8eTCPZ4">此视频</a>），常常缺乏存在感，所以如果不是编制如此庞大一般没人吹。结果在我这次接手之前，这件乐器已经两年没人动过了。木管如果很久不吹是需要上油保养的，但显然队里没人管过这件事，所以刚打开就看到管身都发霉变白了，后来还发现上手管裂了将近10cm的缝...修管师傅来了都诧异我是怎么吹响这玩意儿的。当然今天不讲裂缝，讲讲另一个毛病。</p>
+<p>中黑在机械结构上和降B黑管有很大差异，一个最明显的地方是泛音键控制两个孔而非一个，正常情况下两个孔同时最多打开一个，开哪个由la键（正面最上面的键）决定，目的是调节降si的音高（这也是为了适应降B黑管的指法，事实上中黑在下手管加了一个键可以吹降si，或许还更准一点）。以上这段话都是我在修下文这个奇怪的毛病时自己研究出来的。</p>
+<p>中黑刚上手，我就发现开了泛音键以后经常吹不动，物理意义上的吹不动——好像在吹一根实心木棍，就是振动不起来。当时还完全不明白这就是漏气的重要特征，也还没发现管裂了。就在这种艰苦条件下，我硬是能勉强吹响，还能试图跟大家一起合拍，但吹出来的质量完全是学员班水平...更奇怪的时，这个毛病时有时无，有时候就还能吹，有时候就完全吹不响，非常离谱。</p>
+<p>后来摸索清楚了机械结构，逐渐把问题缩小到了泛音键上。这两个孔的盖子就像跷跷板，连在同一根杆的两端，按下la键会抬起跷跷板的一端，另一端的孔就会合上，松开以后一根小弹簧会抬起另一端，进而换另一个孔合上。但因为温度等等的原因，这个跷跷板的弹簧没有足够的弹力抬起应该抬起的一端，导致开错了孔，最终导致意外的漏气。时好时坏也是因为同样原因——如果我从未用过la键，那么每次都会打开正确的孔，一旦按过一次la键，那个打开的孔就再也合不上了，因此吹不响；过一会儿可能因为无意碰到之类的原因，这个孔又合上了，就有好了。</p>
+<p>发现问题是最难的，修起来其实还算容易，拿一个小螺丝刀松松杆上的螺丝，减小杆回弹的阻力，弹簧就有足够的弹力把跷跷板推回原位了。</p>
+<h3 id="忒修斯的降b木管">忒修斯的降B木管</h3>
+<p>升一队也一段时间了，但因为上学期一直在吹中黑，队里就没给我分降B木管。但这学期中国曲子多，全都没写中黑，二声部又有点缺人，于是中国曲子我又回来吹降B。但我自己也一直没买木管，所以还在用大约14年前买的胶管（不得不说，虽然这个胶管没什么牌子，但音色还真可以，至少以我目前的水平，吹它和吹木管感受到的音色差异不算大，主要差异还是木管吹起来更通畅更灵活一点）。</p>
+<p>然而这学期还带了一个徒弟，发现徒弟的管比我的还好...而且我的胶管也实在是太老了，很多磨损之类的毛病，修管师傅都说没救了。于是三天前队里终于还是给我分了个贵重乐器（相对贵重，其实不过是布菲C12而已，但比起去年新买的雅马哈木管应该还是要好一些），那天试音没吹超高音区，感觉没啥问题。不过这根管应该也有一年半（算上疫情）没人用过了。</p>
+<p>今天背歌唱祖国的谱子，想试试新到手的木管。歌唱祖国奇高无比，主歌基本一直浮在超高音区，吹高音mi时，突然听到奇怪的振动声，高音fa也是，但re和sol就没有——只要下手管有键按住就没事，如果只有上手管按键就有奇怪的振动。这个问题如此离谱，以至于我吹了这么多年黑管从来没听说过。</p>
+<p>为了找到问题出在哪，我从二节开始，逐级向下，把木管和我的胶管拼起来吹（上面是木管下面是胶管），发现如果用我的下手管就没问题，一换上木管的下手管就出毛病，但是下手管并不漏气，吹普通音区也没有任何不正常——离谱。考虑到超高音区的奇怪振动声，我初步判断应该是某个部件的固有频率和超高音相近导致共振。结合高音re和sol没有问题的事实，我尝试在吹mi的时候按住下手管的几个键试试，最终锁定了是低音mi键年久松动，恰好和超高音区产生共振。</p>
+<p>问题找到了，但是怎么修呢？换一个键子不太现实，解决共振问题要么就在这个键子上贴一块东西或者磨掉一部分改变固有频率，但都会对乐器本身大动干戈，不太好。这时我突然想到，队里有一个木管和这根管是同一批买进的同型号，只要换一下这两个乐器的下手管说不定就好了。更进一步，上周这一批管都被送去保养了，说不定是修管师傅装反了盒子，也许没问题的下手管才是原来属于这根管的。</p>
+<p>一试果然没问题，但是另一个哲学问题出现了：是什么决定了一根黑管是它本身？既然换笛头、二节、喇叭口都是常规操作，那么是上手管和下手管决定吗？但是我对调了两根管的下手管后，它们还是原来的自己吗？</p>
+]]></content>
+      <categories>
+        <category>音乐</category>
+      </categories>
+      <tags>
+        <tag>乐器</tag>
+        <tag>单簧管</tag>
+        <tag>修理</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Linux安装gmpy2</title>
     <url>/2021/03/11/%E5%AE%89%E8%A3%85gmpy2/</url>
     <content><![CDATA[<p>今天下午花了点时间配环境，主要困难是安装Python的gmpy2包。这是一个多精度浮点数快速计算库，因为依赖很多，所以在Linux上源码编译安装比较麻烦，而在Windows上则比较简单，直接下载预编译的wheel即可。本文参考了一篇<a
@@ -2966,6 +2934,154 @@ platform!</a></p>
         <tag>gmpy2</tag>
         <tag>浮点数</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>法语基本读音规则表</title>
+    <url>/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/</url>
+    <content><![CDATA[<p>主体基于清华大学单飞老师课件，添加了少量未收录的辅音字母。</p>
+<span id="more"></span>
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_1.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_2.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_3.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_4.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_5.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_6.png" class="">
+<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_7.png" class="">
+]]></content>
+      <categories>
+        <category>外语</category>
+      </categories>
+      <tags>
+        <tag>读音规则</tag>
+        <tag>法语</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>面试中的C++问题（2）</title>
+    <url>/2021/09/05/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%882%EF%BC%89/</url>
+    <content><![CDATA[<p>继续这个系列。本篇的问题可能比上一篇稍复杂一些。</p>
+<span id="more"></span>
+<h3 id="三种智能指针">三种智能指针</h3>
+<p>C++
+11之后建议使用三种智能指针。需要包含<code>&lt;memory&gt;</code>头文件。请区分对象的“生命周期拥有权”和“观测权”。</p>
+<blockquote>
+<p><code>auto_ptr</code>已经被淘汰，不建议使用。</p>
+</blockquote>
+<h4 id="unique_ptr"><code>unique_ptr</code></h4>
+<p>独占对象的生命周期拥有权，当然也包括观测权。它指向的对象不能复制、值传递，不能用于基于值传递的STL库。只能移动，之后原始的<code>unique_ptr</code>变成空指针。</p>
+<p><strong>注意</strong>：如果<code>unique_ptr</code>是临时右值，则允许拷贝。</p>
+<p>可以用<code>reset()</code>、<code>release()</code>，也可以直接重新赋值。</p>
+<p><code>unique_ptr</code>生命周期结束时，自动析构其指向的资源。</p>
+<h4 id="shared_ptr"><code>shared_ptr</code></h4>
+<p>可以共享对象的生命周期拥有权（包括观测权）。底层原理是引用计数，因此除了对象本身，还需要分配一块内存用于记录引用计数，所有<code>shared_ptr</code>共享该计数区域，每多一个<code>shared_ptr</code>，引用+1.
+每个<code>shared_ptr</code>结束生命周期时，引用-1.
+当引用归零时，自动析构其指向的资源。</p>
+<p><strong>注意</strong>：在涉及循环引用时，可能出现问题，如（例子来自<a
+href="https://www.cnblogs.com/KillerAery/p/9096558.html">KillerAery -
+C++11智能指针的深度理解</a>）：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Monster</span> &#123;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_father;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_son;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setFather</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; father)</span></span>;<span class="comment">//实现细节懒得写了</span></span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setSon</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; son)</span></span>;　　　 <span class="comment">//懒</span></span><br><span class="line">　　~<span class="built_in">Monster</span>() &#123;std::cout &lt;&lt; <span class="string">&quot;A monster die!&quot;</span>;&#125;　　　　<span class="comment">//析构时发出死亡的悲鸣</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">runGame</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; father = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; son = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    father-&gt;<span class="built_in">setSon</span>(son);</span><br><span class="line">    son-&gt;<span class="built_in">setFather</span>(father);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么在<code>runGame()</code>结束时，父子指针都无法正常析构。为了解决这一问题，需要使用<code>weak_ptr</code>。</p>
+<h4 id="weak_ptr"><code>weak_ptr</code></h4>
+<p><code>shared_ptr</code>代表强引用，即生命周期拥有权；而<code>weak_ptr</code>代表弱引用，即只拥有观测权。<code>weak_ptr</code>不应该单独使用，应该仅作为<code>shared_ptr</code>的辅助。</p>
+<p>引入<code>weak_ptr</code>后，计数区域需要区分两种引用计数：强引用计数和弱引用计数。当强引用计数归零时，析构指向的对象；当弱引用计数和强引用计数都归零时，才能释放该计数区域。</p>
+<p>在定义拥有对象生命周期控制权的指针时，使用<strong>一次</strong><code>shared_ptr</code>以拥有该对象（i.e.
+当该指针的生命周期结束时，该对象予以析构，其他任何地方都不应该再使用该对象）。<strong>其他任何</strong>要引用该对象的地方，都应该使用<code>weak_ptr</code>。</p>
+<p><strong>注意</strong>：</p>
+<ol type="1">
+<li>如果在<code>weak_ptr</code>未感知的地方<code>shared_ptr</code>生命周期结束，可能导致<code>weak_ptr</code>指针空悬问题。为了解决这一问题，<code>weak_ptr</code>引入<code>expired()</code>成员，可以判断对象是否已释放。</li>
+<li>同样原因，<code>weak_ptr</code>没有重载<code>*</code>和<code>-&gt;</code>，所以称为“观测权”要比“使用权”更好。因此要使用被弱引用的对象，必须先用<code>weak_ptr</code>的<code>lock()</code>获得一个
+<strong><code>shared_ptr</code></strong>，用该<code>shared_ptr</code>使用对象，在使用完成后即使析构该指针（善用作用域）。</li>
+</ol>
+<h3 id="四种显式类型转换">四种显式类型转换</h3>
+<h4 id="static_cast"><code>static_cast</code></h4>
+<p>总体而言用于相关类型间的转换，编译器将尽可能检查类型转换的正确性，并在需要时修改底层二进制表示（如<code>int</code>转成<code>float</code>）。在可能丢失精度时，编译器<strong>不会</strong>提示——如果程序员显示使用了<code>static_cast</code>，则认为你已经预料到了这样的风险。几种常见用法：</p>
+<ol type="1">
+<li>用于内置类型间的转换；</li>
+<li>用于<code>void *</code>和包含类型的指针之间的互相转换；</li>
+<li>有<strong>继承关系</strong>的类型<strong>指针或引用</strong>之间的转换：从子类到父类安全，但从父类到子类不一定安全！如果可能，最好使用<code>dynamic_cast</code>；</li>
+<li>自定义了转换关系的类型<strong>对象</strong>之间的转换。</li>
+</ol>
+<blockquote>
+<p>自定义转换关系： 1）在源类型中定义目标类型的operator；
+2）在目标类型中定义以源类型为唯一参数的构造函数。</p>
+</blockquote>
+<h4 id="reinterpret_cast"><code>reinterpret_cast</code></h4>
+<p>保证底层二进制不变，只是编译器层面上改变了对该二进制的解释类型。</p>
+<p>一般用于<strong>无关类型</strong>的指针间互相转换。也可以用于整数和指针直接的转化，如:</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Device *p = <span class="built_in">reinterpret_cast</span>&lt;Device *&gt;(<span class="number">0xff00</span>);</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：如果转换可能导致精度丢失，则编译器报错。</p>
+<p><code>static_cast</code>和<code>reinterpret_cast</code>的几个例子：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="type">float</span> *p = <span class="keyword">new</span> <span class="type">float</span>;</span><br><span class="line">*p = <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> *ip = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">int</span> *&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%x\n&quot;</span>, *ip);</span><br><span class="line">cout &lt;&lt; ip &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// float *fp = static_cast&lt;float *&gt;(ip);    // forbidden: invalid type</span></span><br><span class="line"><span class="type">void</span> *vp = <span class="built_in">static_cast</span>&lt;<span class="type">void</span> *&gt;(p);</span><br><span class="line"><span class="type">float</span> *fp = <span class="built_in">static_cast</span>&lt;<span class="type">float</span> *&gt;(vp);</span><br><span class="line">cout &lt;&lt; *fp &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> i = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(*p);</span><br><span class="line">cout &lt;&lt; i &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// int what = reinterpret_cast&lt;int&gt;(p);     // on x64 forbidden: loses precision</span></span><br><span class="line"><span class="type">long</span> <span class="type">long</span> what = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">long</span> <span class="type">long</span>&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%llx\n&quot;</span>, what);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> lose = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(<span class="number">1.1f</span>);</span><br><span class="line">cout &lt;&lt; lose &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> losec = <span class="built_in">static_cast</span>&lt;<span class="type">char</span>&gt;(<span class="number">1</span> &lt;&lt; <span class="number">20</span>);</span><br><span class="line">cout &lt;&lt; <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(losec) &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> p;</span><br></pre></td></tr></table></figure>
+<p>其输出为</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">0x40000000</span><br><span class="line">0x562df031eeb0</span><br><span class="line">2</span><br><span class="line">2</span><br><span class="line">0x562df031eeb0</span><br><span class="line">1</span><br><span class="line">0</span><br></pre></td></tr></table></figure>
+<h4 id="dynamic_cast"><code>dynamic_cast</code></h4>
+<p>主要用于有（直接或间接）继承关系的类的指针和引用的转换。<strong>注意</strong>：基类必须定义虚函数！</p>
+<p>几个例子。先定义如下类型：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span> &#123;</span><br><span class="line">    <span class="type">int</span> _a;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">A</span><span class="params">(<span class="type">int</span> a)</span> : _a(a) &#123;</span>&#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_a</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _a; &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">func</span><span class="params">()</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m B!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m D!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Dadd</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line">    <span class="type">int</span> _d;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Dadd</span><span class="params">(<span class="type">int</span> d)</span> : _d(d) &#123;</span> &#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_d</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _d; &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m D(%d)!\n&quot;</span>, _d); &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">myfunc</span><span class="params">()</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m special with %d!\n&quot;</span>, _d); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DA</span>: <span class="keyword">public</span> Dadd, <span class="keyword">public</span> A &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">DA</span>(<span class="type">int</span> d, <span class="type">int</span> a) : <span class="built_in">Dadd</span>(d), <span class="built_in">A</span>(a) &#123;&#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m DA(%d, %d)!\n&quot;</span>, <span class="built_in">get_d</span>(), <span class="built_in">get_a</span>()); &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>继承关系：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">A     B</span><br><span class="line">^     ^</span><br><span class="line">|     |------</span><br><span class="line">|     |     |</span><br><span class="line">|     Dadd  D</span><br><span class="line">|     |</span><br><span class="line">-------</span><br><span class="line">   |</span><br><span class="line">   DA</span><br></pre></td></tr></table></figure>
+<h5 id="例1">例1</h5>
+<p>首先是指针间互相转换。同一条继承线上的类型指针可以用<code>static_cast</code>或<code>dynamic_cast</code>随意转换，最终运行时都会根据VTABLE选择<strong>对象</strong>对应的函数。原理是对象就在内存中，且具有确定的类型和确定的VTABLE，指针可以随意类型。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">D *d = <span class="keyword">new</span> D;</span><br><span class="line">B *sb = <span class="built_in">static_cast</span>&lt;B *&gt;(d);</span><br><span class="line">sb-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">B *db = <span class="built_in">dynamic_cast</span>&lt;B *&gt;(d);</span><br><span class="line">db-&gt;<span class="built_in">func</span>();</span><br><span class="line">D *dd = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(db);</span><br><span class="line">dd-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Dadd *sdadd = static_cast&lt;Dadd *&gt;(d);    // forbidden</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// This is WRONG!</span></span><br><span class="line"><span class="comment">// `sdadd-&gt;myfunc()` may run with output 0 on some platforms,</span></span><br><span class="line"><span class="comment">// and with random output on others.</span></span><br><span class="line">Dadd *sdadd = <span class="built_in">static_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line">sdadd-&gt;<span class="built_in">func</span>();</span><br><span class="line">sdadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line"></span><br><span class="line">DA *sDA = <span class="built_in">static_cast</span>&lt;DA *&gt;(db);</span><br><span class="line">sDA-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">Dadd *ddadd = <span class="built_in">dynamic_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line"><span class="keyword">if</span> (ddadd) &#123;</span><br><span class="line">    ddadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: B* -&gt; Dadd*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> d;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m special with 2123768864!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">failed to convert: B* -&gt; Dadd*</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>注：<code>Dadd *sdadd</code>
+导致的越界访存错误在本文初版中没有提示，详见评论区。</p>
+<p>也可以试试将 <code>_d</code>
+改为一个堆上指针，这种情况下，直接运行可能并不会报错而是输出随机值，但用
+gdb launch 就会 SEGV，有趣的一点是，某些 gdb 实现会给 <code>_d</code>
+这种未初始化的堆指针赋默认值如 <code>0xabababab</code>，因此
+<code>sdadd-&gt;myfunc()</code> 会触发段错误。但本文中放在栈上，即使用
+gdb 也不会段错误。</p>
+</blockquote>
+<h5 id="例2">例2</h5>
+<p>不能直接转化的类型指针之间，也可以调用<code>dynamic_cast</code>，但结果为空指针。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Dadd *da = <span class="keyword">new</span> <span class="built_in">Dadd</span>(<span class="number">2</span>);</span><br><span class="line">D *dad = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(da);</span><br><span class="line"><span class="keyword">if</span> (dad) &#123;</span><br><span class="line">    dad-&gt;<span class="built_in">func</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd* -&gt; D*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> da;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd* -&gt; D*</span><br></pre></td></tr></table></figure>
+<h5 id="例3">例3</h5>
+<p><code>dynamic_cast</code>还可以用于引用的转换（注意是引用，<strong>不是</strong>对象！），成功与否同样取决于被引用的对象实际的类型。类似的，<code>static_cast</code>也有同样效果。</p>
+<p><strong>注意</strong>：不同于指针转换失败会返回空指针，引用转换失败会抛出<code>std::bad_cast</code>异常。</p>
+<p>另外，<code>static_cast</code>还是可以用于<strong>对象本身</strong>的直接转换——会尝试构造<strong>新对象</strong>！</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    <span class="function">Dadd <span class="title">dar</span><span class="params">(<span class="number">3</span>)</span></span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// D &amp;dadr = static_cast&lt;D &amp;&gt;(dar);     // forbidden</span></span><br><span class="line">        D &amp;dadr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dar);</span><br><span class="line">        dadr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// B &amp;dabr = static_cast&lt;B &amp;&gt;(dar);         // this is also OK!</span></span><br><span class="line">    B &amp;dabr = <span class="built_in">dynamic_cast</span>&lt;B &amp;&gt;(dar);</span><br><span class="line">    dabr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        D &amp;bdr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dabr);</span><br><span class="line">        bdr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: B&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Dadd &amp;bdadr = <span class="built_in">dynamic_cast</span>&lt;Dadd &amp;&gt;(dabr);</span><br><span class="line">    bdadr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// DA what1 = static_cast&lt;DA&gt;(dar);     // no matching function for call to ‘DA::DA(Dadd&amp;)’</span></span><br><span class="line">    B what2 = <span class="built_in">static_cast</span>&lt;B&gt;(dar);</span><br><span class="line">    what2.<span class="built_in">func</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">failed to convert: B&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">I&#x27;m B!</span><br></pre></td></tr></table></figure>
+<h5 id="例4">例4</h5>
+<p><code>dynamic_cast</code>甚至可以实现有共同子类（多根继承）的基类间的转换——这是通过运行时检查VTABLE做到的，也是<code>static_cast</code>在编译时做不到的事！</p>
+<blockquote>
+<p>To be mentioned,
+<code>dynamic_cast</code>的目标类型不一定是多态的，如例子中的<code>class A</code>。</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    DA *carrier = <span class="keyword">new</span> <span class="built_in">DA</span>(<span class="number">5</span>, <span class="number">6</span>);</span><br><span class="line"></span><br><span class="line">    B *cb = <span class="built_in">static_cast</span>&lt;B *&gt;(carrier);</span><br><span class="line">    <span class="comment">// A *cas = static_cast&lt;A *&gt;(cb);       // forbidden</span></span><br><span class="line">    A *cad = <span class="built_in">dynamic_cast</span>&lt;A *&gt;(cb);</span><br><span class="line">    cout &lt;&lt; cad-&gt;<span class="built_in">get_a</span>() &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">delete</span> carrier;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">6</span><br></pre></td></tr></table></figure>
+<h4 id="const_cast"><code>const_cast</code></h4>
+<p>用于去除<code>const</code>限定符。</p>
+<blockquote>
+<p>如果要修改<code>const</code>变量的某个部分，强制转换不一定是最好的方案。可以考虑使用<code>mutable</code>将可变的部分定义为“一定不是常量”。</p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>编程</category>
+      </categories>
+      <tags>
+        <tag>面试</tag>
+        <tag>C++</tag>
+        <tag>智能指针</tag>
+        <tag>显式类型转换</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>第一篇blog</title>
+    <url>/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/</url>
+    <content><![CDATA[<h2 id="这是我的第一篇blog">这是我的第一篇blog</h2>
+<p>测试图片插入</p>
+<img data-src="/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/test.jpg" class="" title="测试">
+]]></content>
+      <categories>
+        <category>其他</category>
+      </categories>
   </entry>
   <entry>
     <title>逻辑右移：不同语言与架构对边界条件的处理</title>
@@ -3122,8 +3238,8 @@ class="math inline">\(n\ge 32\)</span>
       </categories>
       <tags>
         <tag>x86</tag>
-        <tag>Arm</tag>
         <tag>C++</tag>
+        <tag>Arm</tag>
         <tag>CUDA</tag>
         <tag>PTX</tag>
         <tag>Python</tag>
@@ -3179,125 +3295,9 @@ id="模板函数能否在.cpp里实现编译后成.o后再链接">模板函数�
         <category>编程</category>
       </categories>
       <tags>
-        <tag>C++</tag>
         <tag>面试</tag>
+        <tag>C++</tag>
         <tag>空指针</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>面试中的C++问题（2）</title>
-    <url>/2021/09/05/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%882%EF%BC%89/</url>
-    <content><![CDATA[<p>继续这个系列。本篇的问题可能比上一篇稍复杂一些。</p>
-<span id="more"></span>
-<h3 id="三种智能指针">三种智能指针</h3>
-<p>C++
-11之后建议使用三种智能指针。需要包含<code>&lt;memory&gt;</code>头文件。请区分对象的“生命周期拥有权”和“观测权”。</p>
-<blockquote>
-<p><code>auto_ptr</code>已经被淘汰，不建议使用。</p>
-</blockquote>
-<h4 id="unique_ptr"><code>unique_ptr</code></h4>
-<p>独占对象的生命周期拥有权，当然也包括观测权。它指向的对象不能复制、值传递，不能用于基于值传递的STL库。只能移动，之后原始的<code>unique_ptr</code>变成空指针。</p>
-<p><strong>注意</strong>：如果<code>unique_ptr</code>是临时右值，则允许拷贝。</p>
-<p>可以用<code>reset()</code>、<code>release()</code>，也可以直接重新赋值。</p>
-<p><code>unique_ptr</code>生命周期结束时，自动析构其指向的资源。</p>
-<h4 id="shared_ptr"><code>shared_ptr</code></h4>
-<p>可以共享对象的生命周期拥有权（包括观测权）。底层原理是引用计数，因此除了对象本身，还需要分配一块内存用于记录引用计数，所有<code>shared_ptr</code>共享该计数区域，每多一个<code>shared_ptr</code>，引用+1.
-每个<code>shared_ptr</code>结束生命周期时，引用-1.
-当引用归零时，自动析构其指向的资源。</p>
-<p><strong>注意</strong>：在涉及循环引用时，可能出现问题，如（例子来自<a
-href="https://www.cnblogs.com/KillerAery/p/9096558.html">KillerAery -
-C++11智能指针的深度理解</a>）：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Monster</span> &#123;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_father;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_son;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setFather</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; father)</span></span>;<span class="comment">//实现细节懒得写了</span></span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setSon</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; son)</span></span>;　　　 <span class="comment">//懒</span></span><br><span class="line">　　~<span class="built_in">Monster</span>() &#123;std::cout &lt;&lt; <span class="string">&quot;A monster die!&quot;</span>;&#125;　　　　<span class="comment">//析构时发出死亡的悲鸣</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">runGame</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; father = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; son = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    father-&gt;<span class="built_in">setSon</span>(son);</span><br><span class="line">    son-&gt;<span class="built_in">setFather</span>(father);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>那么在<code>runGame()</code>结束时，父子指针都无法正常析构。为了解决这一问题，需要使用<code>weak_ptr</code>。</p>
-<h4 id="weak_ptr"><code>weak_ptr</code></h4>
-<p><code>shared_ptr</code>代表强引用，即生命周期拥有权；而<code>weak_ptr</code>代表弱引用，即只拥有观测权。<code>weak_ptr</code>不应该单独使用，应该仅作为<code>shared_ptr</code>的辅助。</p>
-<p>引入<code>weak_ptr</code>后，计数区域需要区分两种引用计数：强引用计数和弱引用计数。当强引用计数归零时，析构指向的对象；当弱引用计数和强引用计数都归零时，才能释放该计数区域。</p>
-<p>在定义拥有对象生命周期控制权的指针时，使用<strong>一次</strong><code>shared_ptr</code>以拥有该对象（i.e.
-当该指针的生命周期结束时，该对象予以析构，其他任何地方都不应该再使用该对象）。<strong>其他任何</strong>要引用该对象的地方，都应该使用<code>weak_ptr</code>。</p>
-<p><strong>注意</strong>：</p>
-<ol type="1">
-<li>如果在<code>weak_ptr</code>未感知的地方<code>shared_ptr</code>生命周期结束，可能导致<code>weak_ptr</code>指针空悬问题。为了解决这一问题，<code>weak_ptr</code>引入<code>expired()</code>成员，可以判断对象是否已释放。</li>
-<li>同样原因，<code>weak_ptr</code>没有重载<code>*</code>和<code>-&gt;</code>，所以称为“观测权”要比“使用权”更好。因此要使用被弱引用的对象，必须先用<code>weak_ptr</code>的<code>lock()</code>获得一个
-<strong><code>shared_ptr</code></strong>，用该<code>shared_ptr</code>使用对象，在使用完成后即使析构该指针（善用作用域）。</li>
-</ol>
-<h3 id="四种显式类型转换">四种显式类型转换</h3>
-<h4 id="static_cast"><code>static_cast</code></h4>
-<p>总体而言用于相关类型间的转换，编译器将尽可能检查类型转换的正确性，并在需要时修改底层二进制表示（如<code>int</code>转成<code>float</code>）。在可能丢失精度时，编译器<strong>不会</strong>提示——如果程序员显示使用了<code>static_cast</code>，则认为你已经预料到了这样的风险。几种常见用法：</p>
-<ol type="1">
-<li>用于内置类型间的转换；</li>
-<li>用于<code>void *</code>和包含类型的指针之间的互相转换；</li>
-<li>有<strong>继承关系</strong>的类型<strong>指针或引用</strong>之间的转换：从子类到父类安全，但从父类到子类不一定安全！如果可能，最好使用<code>dynamic_cast</code>；</li>
-<li>自定义了转换关系的类型<strong>对象</strong>之间的转换。</li>
-</ol>
-<blockquote>
-<p>自定义转换关系： 1）在源类型中定义目标类型的operator；
-2）在目标类型中定义以源类型为唯一参数的构造函数。</p>
-</blockquote>
-<h4 id="reinterpret_cast"><code>reinterpret_cast</code></h4>
-<p>保证底层二进制不变，只是编译器层面上改变了对该二进制的解释类型。</p>
-<p>一般用于<strong>无关类型</strong>的指针间互相转换。也可以用于整数和指针直接的转化，如:</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Device *p = <span class="built_in">reinterpret_cast</span>&lt;Device *&gt;(<span class="number">0xff00</span>);</span><br></pre></td></tr></table></figure>
-<p><strong>注意</strong>：如果转换可能导致精度丢失，则编译器报错。</p>
-<p><code>static_cast</code>和<code>reinterpret_cast</code>的几个例子：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="type">float</span> *p = <span class="keyword">new</span> <span class="type">float</span>;</span><br><span class="line">*p = <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> *ip = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">int</span> *&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%x\n&quot;</span>, *ip);</span><br><span class="line">cout &lt;&lt; ip &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// float *fp = static_cast&lt;float *&gt;(ip);    // forbidden: invalid type</span></span><br><span class="line"><span class="type">void</span> *vp = <span class="built_in">static_cast</span>&lt;<span class="type">void</span> *&gt;(p);</span><br><span class="line"><span class="type">float</span> *fp = <span class="built_in">static_cast</span>&lt;<span class="type">float</span> *&gt;(vp);</span><br><span class="line">cout &lt;&lt; *fp &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> i = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(*p);</span><br><span class="line">cout &lt;&lt; i &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// int what = reinterpret_cast&lt;int&gt;(p);     // on x64 forbidden: loses precision</span></span><br><span class="line"><span class="type">long</span> <span class="type">long</span> what = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">long</span> <span class="type">long</span>&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%llx\n&quot;</span>, what);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> lose = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(<span class="number">1.1f</span>);</span><br><span class="line">cout &lt;&lt; lose &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> losec = <span class="built_in">static_cast</span>&lt;<span class="type">char</span>&gt;(<span class="number">1</span> &lt;&lt; <span class="number">20</span>);</span><br><span class="line">cout &lt;&lt; <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(losec) &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> p;</span><br></pre></td></tr></table></figure>
-<p>其输出为</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">0x40000000</span><br><span class="line">0x562df031eeb0</span><br><span class="line">2</span><br><span class="line">2</span><br><span class="line">0x562df031eeb0</span><br><span class="line">1</span><br><span class="line">0</span><br></pre></td></tr></table></figure>
-<h4 id="dynamic_cast"><code>dynamic_cast</code></h4>
-<p>主要用于有（直接或间接）继承关系的类的指针和引用的转换。<strong>注意</strong>：基类必须定义虚函数！</p>
-<p>几个例子。先定义如下类型：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span> &#123;</span><br><span class="line">    <span class="type">int</span> _a;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">A</span><span class="params">(<span class="type">int</span> a)</span> : _a(a) &#123;</span>&#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_a</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _a; &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">func</span><span class="params">()</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m B!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m D!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Dadd</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line">    <span class="type">int</span> _d;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Dadd</span><span class="params">(<span class="type">int</span> d)</span> : _d(d) &#123;</span> &#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_d</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _d; &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m D(%d)!\n&quot;</span>, _d); &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">myfunc</span><span class="params">()</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m special with %d!\n&quot;</span>, _d); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DA</span>: <span class="keyword">public</span> Dadd, <span class="keyword">public</span> A &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">DA</span>(<span class="type">int</span> d, <span class="type">int</span> a) : <span class="built_in">Dadd</span>(d), <span class="built_in">A</span>(a) &#123;&#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m DA(%d, %d)!\n&quot;</span>, <span class="built_in">get_d</span>(), <span class="built_in">get_a</span>()); &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<p>继承关系：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">A     B</span><br><span class="line">^     ^</span><br><span class="line">|     |------</span><br><span class="line">|     |     |</span><br><span class="line">|     Dadd  D</span><br><span class="line">|     |</span><br><span class="line">-------</span><br><span class="line">   |</span><br><span class="line">   DA</span><br></pre></td></tr></table></figure>
-<h5 id="例1">例1</h5>
-<p>首先是指针间互相转换。同一条继承线上的类型指针可以用<code>static_cast</code>或<code>dynamic_cast</code>随意转换，最终运行时都会根据VTABLE选择<strong>对象</strong>对应的函数。原理是对象就在内存中，且具有确定的类型和确定的VTABLE，指针可以随意类型。</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">D *d = <span class="keyword">new</span> D;</span><br><span class="line">B *sb = <span class="built_in">static_cast</span>&lt;B *&gt;(d);</span><br><span class="line">sb-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">B *db = <span class="built_in">dynamic_cast</span>&lt;B *&gt;(d);</span><br><span class="line">db-&gt;<span class="built_in">func</span>();</span><br><span class="line">D *dd = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(db);</span><br><span class="line">dd-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Dadd *sdadd = static_cast&lt;Dadd *&gt;(d);    // forbidden</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// This is WRONG!</span></span><br><span class="line"><span class="comment">// `sdadd-&gt;myfunc()` may run with output 0 on some platforms,</span></span><br><span class="line"><span class="comment">// and with random output on others.</span></span><br><span class="line">Dadd *sdadd = <span class="built_in">static_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line">sdadd-&gt;<span class="built_in">func</span>();</span><br><span class="line">sdadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line"></span><br><span class="line">DA *sDA = <span class="built_in">static_cast</span>&lt;DA *&gt;(db);</span><br><span class="line">sDA-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">Dadd *ddadd = <span class="built_in">dynamic_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line"><span class="keyword">if</span> (ddadd) &#123;</span><br><span class="line">    ddadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: B* -&gt; Dadd*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> d;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m special with 2123768864!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">failed to convert: B* -&gt; Dadd*</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>注：<code>Dadd *sdadd</code>
-导致的越界访存错误在本文初版中没有提示，详见评论区。</p>
-<p>也可以试试将 <code>_d</code>
-改为一个堆上指针，这种情况下，直接运行可能并不会报错而是输出随机值，但用
-gdb launch 就会 SEGV，有趣的一点是，某些 gdb 实现会给 <code>_d</code>
-这种未初始化的堆指针赋默认值如 <code>0xabababab</code>，因此
-<code>sdadd-&gt;myfunc()</code> 会触发段错误。但本文中放在栈上，即使用
-gdb 也不会段错误。</p>
-</blockquote>
-<h5 id="例2">例2</h5>
-<p>不能直接转化的类型指针之间，也可以调用<code>dynamic_cast</code>，但结果为空指针。</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Dadd *da = <span class="keyword">new</span> <span class="built_in">Dadd</span>(<span class="number">2</span>);</span><br><span class="line">D *dad = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(da);</span><br><span class="line"><span class="keyword">if</span> (dad) &#123;</span><br><span class="line">    dad-&gt;<span class="built_in">func</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd* -&gt; D*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> da;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd* -&gt; D*</span><br></pre></td></tr></table></figure>
-<h5 id="例3">例3</h5>
-<p><code>dynamic_cast</code>还可以用于引用的转换（注意是引用，<strong>不是</strong>对象！），成功与否同样取决于被引用的对象实际的类型。类似的，<code>static_cast</code>也有同样效果。</p>
-<p><strong>注意</strong>：不同于指针转换失败会返回空指针，引用转换失败会抛出<code>std::bad_cast</code>异常。</p>
-<p>另外，<code>static_cast</code>还是可以用于<strong>对象本身</strong>的直接转换——会尝试构造<strong>新对象</strong>！</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    <span class="function">Dadd <span class="title">dar</span><span class="params">(<span class="number">3</span>)</span></span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// D &amp;dadr = static_cast&lt;D &amp;&gt;(dar);     // forbidden</span></span><br><span class="line">        D &amp;dadr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dar);</span><br><span class="line">        dadr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// B &amp;dabr = static_cast&lt;B &amp;&gt;(dar);         // this is also OK!</span></span><br><span class="line">    B &amp;dabr = <span class="built_in">dynamic_cast</span>&lt;B &amp;&gt;(dar);</span><br><span class="line">    dabr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        D &amp;bdr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dabr);</span><br><span class="line">        bdr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: B&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Dadd &amp;bdadr = <span class="built_in">dynamic_cast</span>&lt;Dadd &amp;&gt;(dabr);</span><br><span class="line">    bdadr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// DA what1 = static_cast&lt;DA&gt;(dar);     // no matching function for call to ‘DA::DA(Dadd&amp;)’</span></span><br><span class="line">    B what2 = <span class="built_in">static_cast</span>&lt;B&gt;(dar);</span><br><span class="line">    what2.<span class="built_in">func</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">failed to convert: B&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">I&#x27;m B!</span><br></pre></td></tr></table></figure>
-<h5 id="例4">例4</h5>
-<p><code>dynamic_cast</code>甚至可以实现有共同子类（多根继承）的基类间的转换——这是通过运行时检查VTABLE做到的，也是<code>static_cast</code>在编译时做不到的事！</p>
-<blockquote>
-<p>To be mentioned,
-<code>dynamic_cast</code>的目标类型不一定是多态的，如例子中的<code>class A</code>。</p>
-</blockquote>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    DA *carrier = <span class="keyword">new</span> <span class="built_in">DA</span>(<span class="number">5</span>, <span class="number">6</span>);</span><br><span class="line"></span><br><span class="line">    B *cb = <span class="built_in">static_cast</span>&lt;B *&gt;(carrier);</span><br><span class="line">    <span class="comment">// A *cas = static_cast&lt;A *&gt;(cb);       // forbidden</span></span><br><span class="line">    A *cad = <span class="built_in">dynamic_cast</span>&lt;A *&gt;(cb);</span><br><span class="line">    cout &lt;&lt; cad-&gt;<span class="built_in">get_a</span>() &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">delete</span> carrier;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">6</span><br></pre></td></tr></table></figure>
-<h4 id="const_cast"><code>const_cast</code></h4>
-<p>用于去除<code>const</code>限定符。</p>
-<blockquote>
-<p>如果要修改<code>const</code>变量的某个部分，强制转换不一定是最好的方案。可以考虑使用<code>mutable</code>将可变的部分定义为“一定不是常量”。</p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>编程</category>
-      </categories>
-      <tags>
-        <tag>C++</tag>
-        <tag>面试</tag>
-        <tag>智能指针</tag>
-        <tag>显式类型转换</tag>
       </tags>
   </entry>
 </search>
