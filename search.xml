@@ -2,7 +2,7 @@
 <search>
   <entry>
     <title>3月10日的山桃和忍冬</title>
-    <url>/2021/03/11/3%E6%9C%8810%E6%97%A5%E7%9A%84%E5%B1%B1%E6%A1%83%E5%92%8C%E5%BF%8D%E5%86%AC/</url>
+    <url>/2021/03/11/41cf725fc104/</url>
     <content><![CDATA[<p>昨天逸夫馆前的山桃已经几乎盛开了。北馆前的忍冬也开花了（不知道是开了还快谢了？），望春玉兰也在开的边缘了。</p>
 <span id="more"></span>
 <figure>
@@ -22,8 +22,142 @@
       </tags>
   </entry>
   <entry>
+    <title>[CMU OS lab] P1 (part 1): x86硬件</title>
+    <url>/2020/01/26/4ddd982b1ea5/</url>
+    <content><![CDATA[<p>P1的主要内容是写一个以核心态 Privilege Level 0 直接运行在 x86
+硬件上的游戏 Sokoban
+(推箱子)。同样，出于学术规范考虑，本文不会透露项目的全部代码和 handout
+，但可能会在必要时节选少量代码片段。代码片段版权所有为CMU 15-410/605 OS
+课程。另外也可能节选少量清华 OS 课程代码片段，版权所有为清华大学计算机系
+OS 课程。</p>
+<p>作为第一部分，本文主要介绍 x86
+的基础硬件（体系结构要求，如分段机制、特权级等）。正如 CMU OS
+课程所述，并非所有 OS 都要满足这样的要求，这是利用 x86 平台学习 OS
+必须的代价。</p>
+<span id="more"></span>
+<h1 id="特权级-privilege-level">特权级 Privilege Level</h1>
+<p>x86 特权级共有 ring 0 - ring 3 四等，OS 课程中称为 PL0 - PL3。kernel
+运行在 PL0，用户代码运行在 PL3，PL1 2 本课程不涉及。</p>
+<h1 id="分段机制-segmentation">分段机制 Segmentation</h1>
+<p>段机制的实现基于段寄存器 segment register，段选择子 segment
+selector，段描述符（表） segment descriptor (table)。描述符表分为全局
+global descriptor table (GDT) 和本地 local descriptor table
+(LDT)。本课程只使用GDT，清华OS课程也只使用GDT。</p>
+<p>段选择子如图所示： <img data-src="/2020/01/26/4ddd982b1ea5/segsel.gif" class="" title="段选择子"></p>
+<p>段选择子被存储在段寄存器中。段寄存器共有以下几种： -
+%CS：代码段寄存器，当前运行的代码所在的段 - %SS:
+栈（stack）段寄存器，栈所在的段 - %DS, %ES, %FS, %GS:
+数据段寄存器，一般用%DS</p>
+<p>段描述符如图所示： <img data-src="/2020/01/26/4ddd982b1ea5/segdesc.gif" class="" title="段描述符"></p>
+<p>段描述符被存储在内存中。<code>Type</code>
+字段规定了段的读写权限。因为 x86
+体系规定一个段不能既有“读/写”权限又有“读/执行”权限，因此至少需要两个段：代码段和数据段。为了简便（因为段本身的保护能力被移交给了分页机制），所以这两个段的基址都为0，大小都为
+4G （即 <code>limit</code> 为 0xFFFFFFFF）。</p>
+<p>注意， <code>limit</code> 字段为 20 bits，表示上限为 1 MB，如何表示 4
+GB 呢？在于其 <code>G (granularity)</code> 字段。<code>G</code>
+设置时粒度为 4 Kb，那么 <span class="math inline">\(1M \times 4KB =
+4GB\)</span>. 同时应该设置
+<code>D/B (default operation size/default stack pointer size and/or upper bound)</code>
+为 <code>1</code> 表示 32 bits。</p>
+<h2 id="关于-type">关于 <code>Type</code>：</h2>
+<img data-src="/2020/01/26/4ddd982b1ea5/segtype.png" class="" title="段类型">
+<p>解释了为什么“一个段不能既有‘读/写’权限又有‘读/执行’权限”。CMU中将代码段
+type 设为 b，数据段设为 3，这是额外把 <code>A</code> 也置为了
+1。<code>A</code> 表示
+accessed，即已经访问过，所以这里初始化时设不设置其实没什么影响（似乎）。但THU课程中初始化没有设置
+<code>A</code>.</p>
+<p>另外吐槽一点，CMU 的 GDT 表完全是 magic number 写的：</p>
+<figure class="highlight x86asm"><table><tr><td class="code"><pre><span class="line"><span class="symbol">init_gdt:</span> /* <span class="number">0x100900</span> */</span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00000000</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00000000</span></span><br><span class="line">    /* Next two lines need to be kept <span class="keyword">in</span> sync with smp/smp<span class="number">.</span>c */</span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x09500067</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00008910</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cf9b00</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cf9300</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cffb00</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cff200</span></span><br></pre></td></tr></table></figure>
+<p>然而 THU 的 GDT 是通过定义了各种宏，生成的可读代码：</p>
+<figure class="highlight x86asm"><table><tr><td class="code"><pre><span class="line">#define SEG_ASM(type,base,lim)                                  \</span><br><span class="line"><span class="meta">    .word</span> (((lim) &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0xffff</span>), ((base) &amp; <span class="number">0xffff</span>)<span class="comment">;          \</span></span><br><span class="line"><span class="meta">    .byte</span> (((base) &gt;&gt; <span class="number">16</span>) &amp; <span class="number">0xff</span>), (<span class="number">0x90</span> | (type)),             \</span><br><span class="line">        (<span class="number">0xC0</span> | (((lim) &gt;&gt; <span class="number">28</span>) &amp; <span class="number">0xf</span>)), (((base) &gt;&gt; <span class="number">24</span>) &amp; <span class="number">0xff</span>)</span><br><span class="line"></span><br><span class="line">/* Normal <span class="meta">segment</span> */</span><br><span class="line">#define SEG_NULLASM                                             \</span><br><span class="line"><span class="meta">    .word</span> <span class="number">0</span>, <span class="number">0</span><span class="comment">;                                                 \</span></span><br><span class="line"><span class="meta">    .byte</span> <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span></span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">.data</span></span><br><span class="line"># Bootstrap GDT</span><br><span class="line"><span class="meta">.p2align</span> <span class="number">2</span>                                          # force <span class="number">4</span> <span class="built_in">byte</span> alignment</span><br><span class="line"><span class="symbol">gdt:</span></span><br><span class="line">    SEG_NULLASM                                     # null <span class="built_in">seg</span></span><br><span class="line">    SEG_ASM(STA_X|STA_R, <span class="number">0x0</span>, <span class="number">0xffffffff</span>)           # code <span class="built_in">seg</span> for bootloader <span class="keyword">and</span> kernel</span><br><span class="line">    SEG_ASM(STA_W, <span class="number">0x0</span>, <span class="number">0xffffffff</span>)                 # data <span class="built_in">seg</span> for bootloader <span class="keyword">and</span> kernel</span><br><span class="line"><span class="symbol"></span></span><br><span class="line"><span class="symbol">gdtdesc:</span></span><br><span class="line"><span class="meta">    .word</span> <span class="number">0x17</span>                                      # sizeof(gdt) - <span class="number">1</span></span><br><span class="line"><span class="meta">    .long</span> gdt                                       # address gdt</span><br></pre></td></tr></table></figure>
+<p>而且 CMU 的代码把这一堆 hard code 的 GDT 写在了 <code>.text</code>
+段...不过 CMU 做的好的一个方面是，封装了一个 <code>lgdt</code>
+的函数，通过 asm 代码里一通操作，可以随意 load gdt。THU 倒是把初始化的
+GDT 通过 hard code 给 load 了。</p>
+<p>关于 <code>lgdt</code>，它要的是一个 6B 的参数，前 2B （一个 word）是
+limit，后 4B 是 GDT base。因此 CMU 操作里先 <code>pushl</code> 再
+<code>pushw</code> 然后 <code>lgdt (%esp)</code> 把我整懵了，没想到
+<code>pushw</code> 真就 <code>%esp</code> 减2而非减4...这也对应于 THU
+代码里的 <code>gdtdesc</code> 是一个 word 一个 long。</p>
+<p><code>lgdt</code> 以后 GDT base address 被存在 <code>%CR3</code>
+寄存器里。</p>
+<h2 id="cpl-rpl-dpl">CPL RPL DPL</h2>
+<ul>
+<li><code>CPL</code>: <code>%CR0</code> 寄存器里的处理器 current
+特权级</li>
+<li><code>RPL</code>: 段寄存器里（段选择子）的 required 特权级</li>
+<li><code>DPL</code>: 段描述符里段本身的 descriptor 特权级</li>
+</ul>
+<p>有什么联系：</p>
+<h3 id="访问数据段">访问数据段</h3>
+<p>把一个段选择子加载到数据段寄存器时，需要一个 privilege level
+check：</p>
+<blockquote>
+<p>The processor loads the segment selector into the segment register if
+the DPL is numerically greater than or equal to both the CPL and the
+RPL. Otherwise, a general-protection fault is generated and the segment
+register is not loaded. -- <em>Intel 2001 ed Volume 3 4-9</em></p>
+</blockquote>
+<p>也就是说，RPL 的目的是可以降低当前的特权级（制约
+CPL）。利用一个低特权级的选择子访问低特权级的内存是可行并且更安全的。</p>
+<h3 id="访问代码段">访问代码段</h3>
+<p>通过门 (Gate) 访问代码段也要做检查，这里直接复制我在 THU 上课时在
+Piazza 上回答一个问题的内容<a
+href="https://piazza.com/class/i5j09fnsl7k5x0?cid=1009">关于x-86访问时特权级的问题</a>：</p>
+<p>关于上面提到的最后一点，即“Example of Accessing Call Gates At Various
+Privilege Levels”，对应于PPT中“x86访问门时的特权级：CPL &lt;= DPL[门]
+&amp; CPL &gt;= DPL[段]”，我的理解如下：</p>
+<p>首先手册中Table
+5-1给出了访问门时的特权级检查规则（此处仅考虑使用call而非jmp）：</p>
+<img data-src="/2020/01/26/4ddd982b1ea5/pc-call.png" class="" title="访问门时的特权级检查规则">
+<p>可以看到，对于DPL有两个概念需要区分：其一是门本身的gate
+DPL，其二是门对应的目标代码段的code segment DPL.
+此外，这里还有两个名词需要解释：</p>
+<ul>
+<li>conforming code
+segment：一致代码段，可以被低特权级的用户直接调用访问的代码，但是特权级不会改变，用户态还是用户态</li>
+<li>nonconforming code
+segment：非一致代码段，只允许同级间访问，绝对禁止不同级访问</li>
+</ul>
+<p>这样就可以理解PPT中提到的“CPL &lt;= DPL[门] &amp; CPL &gt;=
+DPL[段]”的含义如下：</p>
+<ul>
+<li>对于第一条“CPL &lt;= DPL[门]”，对应的是Table
+5-1中第一条条件，即门本身是可以在当前特权级下被访问到的</li>
+<li>对于第二条“CPL &gt;= DPL[段]”，对应的是Table
+5-1中第二条条件，即门对应的目标代码段（可以理解为门指向的中断服务例程代码）所满足的条件，也就是要求目标代码的DPL不大于当前特权级；这一点很好理解，因为目标代码段一般为核心代码，其本身的DPL为核心等级，但存在处于用户态的进程需要执行这些代码的需求（如系统调用），因此允许目标代码DPL小于CPL的情况出现。但针对代码段是conforming还是nonconforming，会涉及到是否要变更CPL</li>
+</ul>
+<p>下面举出手册中的例子。作为例子的Figure 5-12如下：</p>
+<img data-src="/2020/01/26/4ddd982b1ea5/pc-call-eg.png" class="" title="不同特权级访问门的例子">
+<p>仅以在ring 3访问Gate A为例：</p>
+<ul>
+<li>当前处于用户态的代码段A，CPL=3</li>
+<li>通过Gate Selector A以RPL=3访问门A，门A的DPL=3，这满足Table
+5-1的第一条检查条件，即“CPL &lt;= call gate DPL, RPL &lt;= call gate
+DPL”</li>
+<li>在满足上面的条件后，则可以跳转并执行门A对应的核心态代码段E（可以理解为门A对应的中断服务例程），代码段E的DPL=0，小于CPL，对于call
+gate而言这是允许的，满足Table 5-1的第二条检查条件</li>
+<li>由于代码段E是nonconforming code
+segment，所以会要求CPL的特权级变更（需要变为代码段E的同级即ring
+0），因而会导致stack switch（作为对比，访问代码段D时不需要stack
+switch）</li>
+</ul>
+<p>（参考：Intel® 64 and IA-32 Architectures Software Developer’s Manual
+第5.8.4节 Accessing a Code Segment Through a Call Gate）</p>
+]]></content>
+      <categories>
+        <category>系统</category>
+      </categories>
+      <tags>
+        <tag>OS</tag>
+        <tag>System</tag>
+        <tag>x86</tag>
+        <tag>CMU</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Golang创建定时程序</title>
-    <url>/2021/03/10/Golang%E5%88%9B%E5%BB%BA%E5%AE%9A%E6%97%B6%E7%A8%8B%E5%BA%8F/</url>
+    <url>/2021/03/10/a0797f91ec67/</url>
     <content><![CDATA[<p>前两天用Golang手写MapReduce框架时，遇到这样一个问题：</p>
 <blockquote>
 <p>worker可能随时crash，那么coordinator分配给worker的任务不能无限等待worker的回复，因此需要给每个分配出去的任务设置timeout，也就是需要一个定时程序清理crash/太慢的worker的任务。</p>
@@ -58,8 +192,85 @@ AfterFunc. A Timer must be created with NewTimer or AfterFunc.</p>
       </tags>
   </entry>
   <entry>
+    <title>KaTex中的多行等式</title>
+    <url>/2019/03/11/2a4cfaea7761/</url>
+    <content><![CDATA[<p>Traceback (most recent call last): File "/2019/03/11/9c2ab4054ae2/" Error: no
+idea of using KaTex for math formula</p>
+<p>During handling of the above exception, another exception
+occurred:</p>
+<p>Traceback (most recent call last): File " <a
+href="https://katex.org/docs/support_table.html">KaTex Support Table</a>
+" Error: no idea of how to display multi-line equations</p>
+<span id="more"></span>
+<p>在写博客时要输入数学公式，发现想不起来<span
+class="math inline">\(\KaTeX\)</span>（也即<span
+class="math inline">\(\LaTeX\)</span>）的语法了……</p>
+<p>于是去查了语法，比如：</p>
+<p><strong>In:</strong></p>
+<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="built_in">$</span><span class="built_in">$</span><span class="keyword">\frac</span>&#123;1&#125;&#123;n-1&#125;<span class="built_in">$</span><span class="built_in">$</span></span><br><span class="line"><span class="built_in">$</span><span class="built_in">$</span><span class="keyword">\frac</span>&#123;v<span class="built_in">_</span>1&#125;&#123;<span class="keyword">\theta</span><span class="built_in">^</span>&#123;3&#125;&#125;<span class="built_in">$</span><span class="built_in">$</span></span><br></pre></td></tr></table></figure>
+<p><strong>Out:</strong></p>
+<p><span class="math display">\[\frac{1}{n-1}\]</span></p>
+<p><span class="math display">\[\frac{v_1}{\theta^{3}}\]</span></p>
+<p>然而遇到了一个多行公式（连等式），太长了实在避免不了分行，于是只能查一下怎么打多行公式。却发现<span
+class="math inline">\(\LaTeX\)</span>支持的</p>
+<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="keyword">\begin</span>&#123;equation*&#125;<span class="comment">%加*表示不对公式编号</span></span><br><span class="line"><span class="keyword">\begin</span>&#123;split&#125;</span><br><span class="line">...</span><br><span class="line"><span class="keyword">\end</span>&#123;split&#125;</span><br><span class="line"><span class="keyword">\end</span>&#123;equation*&#125;</span><br></pre></td></tr></table></figure>
+<p>并不被<span class="math inline">\(\KaTeX\)</span>支持，同时指向了<a
+href="https://github.com/KaTeX/KaTeX/issues/445">Issue
+#445</a>，打开发现其实可以用<code>aligned</code>代替：</p>
+<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="keyword">\begin</span>&#123;aligned&#125;</span><br><span class="line">a<span class="built_in">&amp;</span>=b<span class="built_in">&amp;</span>c<span class="built_in">&amp;</span>=d<span class="keyword">\\</span></span><br><span class="line">e<span class="built_in">&amp;</span>=f</span><br><span class="line"><span class="keyword">\end</span>&#123;aligned&#125;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<p><span class="math display">\[\begin{aligned}
+a&amp;=b&amp;c&amp;=d\\
+e&amp;=f
+\end{aligned}
+\]</span></p>
+<p>问题解决。EOF</p>
+]]></content>
+      <categories>
+        <category>技巧</category>
+      </categories>
+      <tags>
+        <tag>LaTeX</tag>
+        <tag>KaTeX</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>《极乐迪斯科》游戏短评</title>
+    <url>/2020/05/17/b8b4148b01d6/</url>
+    <content><![CDATA[<blockquote>
+<p>本短评原载于<a
+href="https://steamcommunity.com/profiles/76561198100631292/recommended/">本人的Steam游戏评测</a>。有改动。</p>
+</blockquote>
+<p>真正的好游戏。下载后连续玩了两天半通关，根本无法拒绝其强大的魅力。作为解谜游戏，主线稳定清晰，剧情波折起伏，指向性明确，通关动力充足；支线丰富，有较多隐藏任务和剧情，触发方式和条件多样，任务时间安排自由度高；地图范围足够大，循序开放，有利于在高自由度下协助玩家集中注意力；扔骰子检定机制引入随机性，一定程度上丰富了可玩性，兼具桌游特性。同时作为RPG游戏，技能学习引入成长性，符合角色扮演模式，有限的思维阁空间迫使玩家在探索和利用间做出抉择，增加了因玩家而异的个性化。</p>
+<span id="more"></span>
+<p>游戏世界观新奇但与现实呼应紧密，熟悉二十世纪苏联历史的玩家，尤其考虑到游戏作者的爱沙尼亚背景，不难从游戏的历史介绍中看出对现实的呈现和反思——更重要的是，游戏把反思的权利较大程度上交给了玩家本人，这是一种难得的“自由度”，一种对游戏世界观和价值观建构权利的自由度，就这一点而言，其冲击远远超过地图或支线任务的自由度——二者完全不在同一维度，这种价值的自由度我几乎未在其他解谜/RPG类游戏中体验过。玩家在选择面对游戏世界历史的zz立场同时，也在选择自己的人生立场：等待末日，或百无聊赖，或摇滚巨星，角色面对人生的态度也全由玩家选择。为什么一个警探不能在勤勉破案的同时，唱歌跳舞，组建club呢？某种意义上，这或许是游戏作者对自己人生经历的投射。</p>
+<p>游戏风格化程度很高，作画风格暂且不论，disco、涂鸦在游戏中都可以触发支线剧情，当代艺术形式的隐喻贯穿始终，总有一些选项给予玩家足够的展现个性的机会，伴着阳极音乐拉同伴一起跳舞，面对空墙壁突发艺术灵感，在悲剧过后的广场上点燃混着血的重油涂鸦，这正是“酷”，正是“极乐”和“disco”本身。此外还有脑科学的隐喻，mainframe仿佛蒸汽朋克般的前现代感，远方的真人接线员登录系统，在吸引艺术家的同时也给了工程和科学足够的关照。失败的游戏公司又无处不透露着对作者团队自身的揶揄，能扭曲光线的超高净值者又是怎样一种残酷的幽默。</p>
+<p>游戏音乐来自英国摇滚乐队 <em><a
+href="https://www.britishseapower.co.uk/">British Sea Power</a></em>
+（Indie
+Rock/Alt-rock/Post-punk/Post-rock），可以翻译为“不列颠海上力量”，但个人更倾向于“不列颠海军”，尤其是考虑到其首张专辑名为
+<em><a
+href="https://en.wikipedia.org/wiki/The_Decline_of_British_Sea_Power">The
+Decline of British Sea
+Power</a></em>（2003），让我想起日不落帝国二战后的衰落和瓦解。乐队组建于千禧初年，风格偏重后摇和氛围摇滚，格外凸显了继承自英伦摇滚的落寞感。不知道其在后摇/另类摇滚圈中知名度如何，可惜我在四年前听后摇时并没有踏足他们的作品。不论如何，看起来游戏作者联系到了这支乐队（或许是他们喜爱的乐队？），2019年该乐队为游戏创作乐谱，在2020年4月的BAFTA奖中，他们因本游戏中的作品获得“最佳音乐奖”<a
+href="https://en.wikipedia.org/wiki/British_Sea_Power">^
+1</a>。当然，游戏中充满反讽/自嘲的一点是，经常出现对摇滚的贬斥，和对“阳极音乐”的“吹捧”，的确，爱摇滚的人才会说摇滚已死，爱爵士的人才会说爵士已死，爱建筑的人才会说建筑已死。</p>
+<p>最后，希望各位能在游戏中尽情探索，尽情挥洒个性，扮演现实中做不到的别人，或是完完全全自我投射。不论是滚青还是geek，只要心里有一个“酷”的幻想，就一定会在某处获得共鸣，深深沉浸在游戏塑造的Elysium里。</p>
+<p>顺带一提，游戏里出现了不少法语和法国口音，耐人寻味。</p>
+]]></content>
+      <categories>
+        <category>游戏</category>
+      </categories>
+      <tags>
+        <tag>评测</tag>
+        <tag>解密游戏</tag>
+        <tag>极乐迪斯科</tag>
+        <tag>Disco Elysium</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>人类心智和计算机发展简史：《人类的终极命运》读书笔记</title>
-    <url>/2019/03/04/%E3%80%8A%E4%BA%BA%E7%B1%BB%E7%9A%84%E7%BB%88%E6%9E%81%E5%91%BD%E8%BF%90%E3%80%8B%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/</url>
+    <url>/2019/03/04/b9449c1bcaae/</url>
     <content><![CDATA[<blockquote class="blockquote-center">
 <p>作为对老师推荐书目《人类的终极命运——从旧石器时代到人工智能的未来》的阅读笔记……对我而言是一种备忘和阅读输出，对读者而言多多少少也是一种想法的交流和讨论，而非仅仅是对枯燥历史的教科书式搬运。</p>
 
@@ -121,219 +332,8 @@ AfterFunc. A Timer must be created with NewTimer or AfterFunc.</p>
       </tags>
   </entry>
   <entry>
-    <title>《极乐迪斯科》游戏短评</title>
-    <url>/2020/05/17/%E3%80%8A%E6%9E%81%E4%B9%90%E8%BF%AA%E6%96%AF%E7%A7%91%E3%80%8B%E6%B8%B8%E6%88%8F%E7%9F%AD%E8%AF%84/</url>
-    <content><![CDATA[<blockquote>
-<p>本短评原载于<a
-href="https://steamcommunity.com/profiles/76561198100631292/recommended/">本人的Steam游戏评测</a>。有改动。</p>
-</blockquote>
-<p>真正的好游戏。下载后连续玩了两天半通关，根本无法拒绝其强大的魅力。作为解谜游戏，主线稳定清晰，剧情波折起伏，指向性明确，通关动力充足；支线丰富，有较多隐藏任务和剧情，触发方式和条件多样，任务时间安排自由度高；地图范围足够大，循序开放，有利于在高自由度下协助玩家集中注意力；扔骰子检定机制引入随机性，一定程度上丰富了可玩性，兼具桌游特性。同时作为RPG游戏，技能学习引入成长性，符合角色扮演模式，有限的思维阁空间迫使玩家在探索和利用间做出抉择，增加了因玩家而异的个性化。</p>
-<span id="more"></span>
-<p>游戏世界观新奇但与现实呼应紧密，熟悉二十世纪苏联历史的玩家，尤其考虑到游戏作者的爱沙尼亚背景，不难从游戏的历史介绍中看出对现实的呈现和反思——更重要的是，游戏把反思的权利较大程度上交给了玩家本人，这是一种难得的“自由度”，一种对游戏世界观和价值观建构权利的自由度，就这一点而言，其冲击远远超过地图或支线任务的自由度——二者完全不在同一维度，这种价值的自由度我几乎未在其他解谜/RPG类游戏中体验过。玩家在选择面对游戏世界历史的zz立场同时，也在选择自己的人生立场：等待末日，或百无聊赖，或摇滚巨星，角色面对人生的态度也全由玩家选择。为什么一个警探不能在勤勉破案的同时，唱歌跳舞，组建club呢？某种意义上，这或许是游戏作者对自己人生经历的投射。</p>
-<p>游戏风格化程度很高，作画风格暂且不论，disco、涂鸦在游戏中都可以触发支线剧情，当代艺术形式的隐喻贯穿始终，总有一些选项给予玩家足够的展现个性的机会，伴着阳极音乐拉同伴一起跳舞，面对空墙壁突发艺术灵感，在悲剧过后的广场上点燃混着血的重油涂鸦，这正是“酷”，正是“极乐”和“disco”本身。此外还有脑科学的隐喻，mainframe仿佛蒸汽朋克般的前现代感，远方的真人接线员登录系统，在吸引艺术家的同时也给了工程和科学足够的关照。失败的游戏公司又无处不透露着对作者团队自身的揶揄，能扭曲光线的超高净值者又是怎样一种残酷的幽默。</p>
-<p>游戏音乐来自英国摇滚乐队 <em><a
-href="https://www.britishseapower.co.uk/">British Sea Power</a></em>
-（Indie
-Rock/Alt-rock/Post-punk/Post-rock），可以翻译为“不列颠海上力量”，但个人更倾向于“不列颠海军”，尤其是考虑到其首张专辑名为
-<em><a
-href="https://en.wikipedia.org/wiki/The_Decline_of_British_Sea_Power">The
-Decline of British Sea
-Power</a></em>（2003），让我想起日不落帝国二战后的衰落和瓦解。乐队组建于千禧初年，风格偏重后摇和氛围摇滚，格外凸显了继承自英伦摇滚的落寞感。不知道其在后摇/另类摇滚圈中知名度如何，可惜我在四年前听后摇时并没有踏足他们的作品。不论如何，看起来游戏作者联系到了这支乐队（或许是他们喜爱的乐队？），2019年该乐队为游戏创作乐谱，在2020年4月的BAFTA奖中，他们因本游戏中的作品获得“最佳音乐奖”<a
-href="https://en.wikipedia.org/wiki/British_Sea_Power">^
-1</a>。当然，游戏中充满反讽/自嘲的一点是，经常出现对摇滚的贬斥，和对“阳极音乐”的“吹捧”，的确，爱摇滚的人才会说摇滚已死，爱爵士的人才会说爵士已死，爱建筑的人才会说建筑已死。</p>
-<p>最后，希望各位能在游戏中尽情探索，尽情挥洒个性，扮演现实中做不到的别人，或是完完全全自我投射。不论是滚青还是geek，只要心里有一个“酷”的幻想，就一定会在某处获得共鸣，深深沉浸在游戏塑造的Elysium里。</p>
-<p>顺带一提，游戏里出现了不少法语和法国口音，耐人寻味。</p>
-]]></content>
-      <categories>
-        <category>游戏</category>
-      </categories>
-      <tags>
-        <tag>评测</tag>
-        <tag>解密游戏</tag>
-        <tag>极乐迪斯科</tag>
-        <tag>Disco Elysium</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[CMU OS lab] P1 (part 1): x86硬件</title>
-    <url>/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/</url>
-    <content><![CDATA[<p>P1的主要内容是写一个以核心态 Privilege Level 0 直接运行在 x86
-硬件上的游戏 Sokoban
-(推箱子)。同样，出于学术规范考虑，本文不会透露项目的全部代码和 handout
-，但可能会在必要时节选少量代码片段。代码片段版权所有为CMU 15-410/605 OS
-课程。另外也可能节选少量清华 OS 课程代码片段，版权所有为清华大学计算机系
-OS 课程。</p>
-<p>作为第一部分，本文主要介绍 x86
-的基础硬件（体系结构要求，如分段机制、特权级等）。正如 CMU OS
-课程所述，并非所有 OS 都要满足这样的要求，这是利用 x86 平台学习 OS
-必须的代价。</p>
-<span id="more"></span>
-<h1 id="特权级-privilege-level">特权级 Privilege Level</h1>
-<p>x86 特权级共有 ring 0 - ring 3 四等，OS 课程中称为 PL0 - PL3。kernel
-运行在 PL0，用户代码运行在 PL3，PL1 2 本课程不涉及。</p>
-<h1 id="分段机制-segmentation">分段机制 Segmentation</h1>
-<p>段机制的实现基于段寄存器 segment register，段选择子 segment
-selector，段描述符（表） segment descriptor (table)。描述符表分为全局
-global descriptor table (GDT) 和本地 local descriptor table
-(LDT)。本课程只使用GDT，清华OS课程也只使用GDT。</p>
-<p>段选择子如图所示： <img data-src="/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/segsel.gif" class="" title="段选择子"></p>
-<p>段选择子被存储在段寄存器中。段寄存器共有以下几种： -
-%CS：代码段寄存器，当前运行的代码所在的段 - %SS:
-栈（stack）段寄存器，栈所在的段 - %DS, %ES, %FS, %GS:
-数据段寄存器，一般用%DS</p>
-<p>段描述符如图所示： <img data-src="/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/segdesc.gif" class="" title="段描述符"></p>
-<p>段描述符被存储在内存中。<code>Type</code>
-字段规定了段的读写权限。因为 x86
-体系规定一个段不能既有“读/写”权限又有“读/执行”权限，因此至少需要两个段：代码段和数据段。为了简便（因为段本身的保护能力被移交给了分页机制），所以这两个段的基址都为0，大小都为
-4G （即 <code>limit</code> 为 0xFFFFFFFF）。</p>
-<p>注意， <code>limit</code> 字段为 20 bits，表示上限为 1 MB，如何表示 4
-GB 呢？在于其 <code>G (granularity)</code> 字段。<code>G</code>
-设置时粒度为 4 Kb，那么 <span class="math inline">\(1M \times 4KB =
-4GB\)</span>. 同时应该设置
-<code>D/B (default operation size/default stack pointer size and/or upper bound)</code>
-为 <code>1</code> 表示 32 bits。</p>
-<h2 id="关于-type">关于 <code>Type</code>：</h2>
-<img data-src="/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/segtype.png" class="" title="段类型">
-<p>解释了为什么“一个段不能既有‘读/写’权限又有‘读/执行’权限”。CMU中将代码段
-type 设为 b，数据段设为 3，这是额外把 <code>A</code> 也置为了
-1。<code>A</code> 表示
-accessed，即已经访问过，所以这里初始化时设不设置其实没什么影响（似乎）。但THU课程中初始化没有设置
-<code>A</code>.</p>
-<p>另外吐槽一点，CMU 的 GDT 表完全是 magic number 写的：</p>
-<figure class="highlight x86asm"><table><tr><td class="code"><pre><span class="line"><span class="symbol">init_gdt:</span> /* <span class="number">0x100900</span> */</span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00000000</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00000000</span></span><br><span class="line">    /* Next two lines need to be kept <span class="keyword">in</span> sync with smp/smp<span class="number">.</span>c */</span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x09500067</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00008910</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cf9b00</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cf9300</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cffb00</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x0000ffff</span></span><br><span class="line"><span class="meta">    .long</span> <span class="number">0x00cff200</span></span><br></pre></td></tr></table></figure>
-<p>然而 THU 的 GDT 是通过定义了各种宏，生成的可读代码：</p>
-<figure class="highlight x86asm"><table><tr><td class="code"><pre><span class="line">#define SEG_ASM(type,base,lim)                                  \</span><br><span class="line"><span class="meta">    .word</span> (((lim) &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0xffff</span>), ((base) &amp; <span class="number">0xffff</span>)<span class="comment">;          \</span></span><br><span class="line"><span class="meta">    .byte</span> (((base) &gt;&gt; <span class="number">16</span>) &amp; <span class="number">0xff</span>), (<span class="number">0x90</span> | (type)),             \</span><br><span class="line">        (<span class="number">0xC0</span> | (((lim) &gt;&gt; <span class="number">28</span>) &amp; <span class="number">0xf</span>)), (((base) &gt;&gt; <span class="number">24</span>) &amp; <span class="number">0xff</span>)</span><br><span class="line"></span><br><span class="line">/* Normal <span class="meta">segment</span> */</span><br><span class="line">#define SEG_NULLASM                                             \</span><br><span class="line"><span class="meta">    .word</span> <span class="number">0</span>, <span class="number">0</span><span class="comment">;                                                 \</span></span><br><span class="line"><span class="meta">    .byte</span> <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span></span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">.data</span></span><br><span class="line"># Bootstrap GDT</span><br><span class="line"><span class="meta">.p2align</span> <span class="number">2</span>                                          # force <span class="number">4</span> <span class="built_in">byte</span> alignment</span><br><span class="line"><span class="symbol">gdt:</span></span><br><span class="line">    SEG_NULLASM                                     # null <span class="built_in">seg</span></span><br><span class="line">    SEG_ASM(STA_X|STA_R, <span class="number">0x0</span>, <span class="number">0xffffffff</span>)           # code <span class="built_in">seg</span> for bootloader <span class="keyword">and</span> kernel</span><br><span class="line">    SEG_ASM(STA_W, <span class="number">0x0</span>, <span class="number">0xffffffff</span>)                 # data <span class="built_in">seg</span> for bootloader <span class="keyword">and</span> kernel</span><br><span class="line"><span class="symbol"></span></span><br><span class="line"><span class="symbol">gdtdesc:</span></span><br><span class="line"><span class="meta">    .word</span> <span class="number">0x17</span>                                      # sizeof(gdt) - <span class="number">1</span></span><br><span class="line"><span class="meta">    .long</span> gdt                                       # address gdt</span><br></pre></td></tr></table></figure>
-<p>而且 CMU 的代码把这一堆 hard code 的 GDT 写在了 <code>.text</code>
-段...不过 CMU 做的好的一个方面是，封装了一个 <code>lgdt</code>
-的函数，通过 asm 代码里一通操作，可以随意 load gdt。THU 倒是把初始化的
-GDT 通过 hard code 给 load 了。</p>
-<p>关于 <code>lgdt</code>，它要的是一个 6B 的参数，前 2B （一个 word）是
-limit，后 4B 是 GDT base。因此 CMU 操作里先 <code>pushl</code> 再
-<code>pushw</code> 然后 <code>lgdt (%esp)</code> 把我整懵了，没想到
-<code>pushw</code> 真就 <code>%esp</code> 减2而非减4...这也对应于 THU
-代码里的 <code>gdtdesc</code> 是一个 word 一个 long。</p>
-<p><code>lgdt</code> 以后 GDT base address 被存在 <code>%CR3</code>
-寄存器里。</p>
-<h2 id="cpl-rpl-dpl">CPL RPL DPL</h2>
-<ul>
-<li><code>CPL</code>: <code>%CR0</code> 寄存器里的处理器 current
-特权级</li>
-<li><code>RPL</code>: 段寄存器里（段选择子）的 required 特权级</li>
-<li><code>DPL</code>: 段描述符里段本身的 descriptor 特权级</li>
-</ul>
-<p>有什么联系：</p>
-<h3 id="访问数据段">访问数据段</h3>
-<p>把一个段选择子加载到数据段寄存器时，需要一个 privilege level
-check：</p>
-<blockquote>
-<p>The processor loads the segment selector into the segment register if
-the DPL is numerically greater than or equal to both the CPL and the
-RPL. Otherwise, a general-protection fault is generated and the segment
-register is not loaded. -- <em>Intel 2001 ed Volume 3 4-9</em></p>
-</blockquote>
-<p>也就是说，RPL 的目的是可以降低当前的特权级（制约
-CPL）。利用一个低特权级的选择子访问低特权级的内存是可行并且更安全的。</p>
-<h3 id="访问代码段">访问代码段</h3>
-<p>通过门 (Gate) 访问代码段也要做检查，这里直接复制我在 THU 上课时在
-Piazza 上回答一个问题的内容<a
-href="https://piazza.com/class/i5j09fnsl7k5x0?cid=1009">关于x-86访问时特权级的问题</a>：</p>
-<p>关于上面提到的最后一点，即“Example of Accessing Call Gates At Various
-Privilege Levels”，对应于PPT中“x86访问门时的特权级：CPL &lt;= DPL[门]
-&amp; CPL &gt;= DPL[段]”，我的理解如下：</p>
-<p>首先手册中Table
-5-1给出了访问门时的特权级检查规则（此处仅考虑使用call而非jmp）：</p>
-<img data-src="/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/pc-call.png" class="" title="访问门时的特权级检查规则">
-<p>可以看到，对于DPL有两个概念需要区分：其一是门本身的gate
-DPL，其二是门对应的目标代码段的code segment DPL.
-此外，这里还有两个名词需要解释：</p>
-<ul>
-<li>conforming code
-segment：一致代码段，可以被低特权级的用户直接调用访问的代码，但是特权级不会改变，用户态还是用户态</li>
-<li>nonconforming code
-segment：非一致代码段，只允许同级间访问，绝对禁止不同级访问</li>
-</ul>
-<p>这样就可以理解PPT中提到的“CPL &lt;= DPL[门] &amp; CPL &gt;=
-DPL[段]”的含义如下：</p>
-<ul>
-<li>对于第一条“CPL &lt;= DPL[门]”，对应的是Table
-5-1中第一条条件，即门本身是可以在当前特权级下被访问到的</li>
-<li>对于第二条“CPL &gt;= DPL[段]”，对应的是Table
-5-1中第二条条件，即门对应的目标代码段（可以理解为门指向的中断服务例程代码）所满足的条件，也就是要求目标代码的DPL不大于当前特权级；这一点很好理解，因为目标代码段一般为核心代码，其本身的DPL为核心等级，但存在处于用户态的进程需要执行这些代码的需求（如系统调用），因此允许目标代码DPL小于CPL的情况出现。但针对代码段是conforming还是nonconforming，会涉及到是否要变更CPL</li>
-</ul>
-<p>下面举出手册中的例子。作为例子的Figure 5-12如下：</p>
-<img data-src="/2020/01/26/CMU-OS-lab-P1-part-1-x86%E7%A1%AC%E4%BB%B6/pc-call-eg.png" class="" title="不同特权级访问门的例子">
-<p>仅以在ring 3访问Gate A为例：</p>
-<ul>
-<li>当前处于用户态的代码段A，CPL=3</li>
-<li>通过Gate Selector A以RPL=3访问门A，门A的DPL=3，这满足Table
-5-1的第一条检查条件，即“CPL &lt;= call gate DPL, RPL &lt;= call gate
-DPL”</li>
-<li>在满足上面的条件后，则可以跳转并执行门A对应的核心态代码段E（可以理解为门A对应的中断服务例程），代码段E的DPL=0，小于CPL，对于call
-gate而言这是允许的，满足Table 5-1的第二条检查条件</li>
-<li>由于代码段E是nonconforming code
-segment，所以会要求CPL的特权级变更（需要变为代码段E的同级即ring
-0），因而会导致stack switch（作为对比，访问代码段D时不需要stack
-switch）</li>
-</ul>
-<p>（参考：Intel® 64 and IA-32 Architectures Software Developer’s Manual
-第5.8.4节 Accessing a Code Segment Through a Call Gate）</p>
-]]></content>
-      <categories>
-        <category>系统</category>
-      </categories>
-      <tags>
-        <tag>OS</tag>
-        <tag>System</tag>
-        <tag>x86</tag>
-        <tag>CMU</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>KaTex中的多行等式</title>
-    <url>/2019/03/11/KaTex%E4%B8%AD%E7%9A%84%E5%A4%9A%E8%A1%8C%E7%AD%89%E5%BC%8F/</url>
-    <content><![CDATA[<p>Traceback (most recent call last): File "/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/" Error: no
-idea of using KaTex for math formula</p>
-<p>During handling of the above exception, another exception
-occurred:</p>
-<p>Traceback (most recent call last): File " <a
-href="https://katex.org/docs/support_table.html">KaTex Support Table</a>
-" Error: no idea of how to display multi-line equations</p>
-<span id="more"></span>
-<p>在写博客时要输入数学公式，发现想不起来<span
-class="math inline">\(\KaTeX\)</span>（也即<span
-class="math inline">\(\LaTeX\)</span>）的语法了……</p>
-<p>于是去查了语法，比如：</p>
-<p><strong>In:</strong></p>
-<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="built_in">$</span><span class="built_in">$</span><span class="keyword">\frac</span>&#123;1&#125;&#123;n-1&#125;<span class="built_in">$</span><span class="built_in">$</span></span><br><span class="line"><span class="built_in">$</span><span class="built_in">$</span><span class="keyword">\frac</span>&#123;v<span class="built_in">_</span>1&#125;&#123;<span class="keyword">\theta</span><span class="built_in">^</span>&#123;3&#125;&#125;<span class="built_in">$</span><span class="built_in">$</span></span><br></pre></td></tr></table></figure>
-<p><strong>Out:</strong></p>
-<p><span class="math display">\[\frac{1}{n-1}\]</span></p>
-<p><span class="math display">\[\frac{v_1}{\theta^{3}}\]</span></p>
-<p>然而遇到了一个多行公式（连等式），太长了实在避免不了分行，于是只能查一下怎么打多行公式。却发现<span
-class="math inline">\(\LaTeX\)</span>支持的</p>
-<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="keyword">\begin</span>&#123;equation*&#125;<span class="comment">%加*表示不对公式编号</span></span><br><span class="line"><span class="keyword">\begin</span>&#123;split&#125;</span><br><span class="line">...</span><br><span class="line"><span class="keyword">\end</span>&#123;split&#125;</span><br><span class="line"><span class="keyword">\end</span>&#123;equation*&#125;</span><br></pre></td></tr></table></figure>
-<p>并不被<span class="math inline">\(\KaTeX\)</span>支持，同时指向了<a
-href="https://github.com/KaTeX/KaTeX/issues/445">Issue
-#445</a>，打开发现其实可以用<code>aligned</code>代替：</p>
-<figure class="highlight latex"><table><tr><td class="code"><pre><span class="line"><span class="keyword">\begin</span>&#123;aligned&#125;</span><br><span class="line">a<span class="built_in">&amp;</span>=b<span class="built_in">&amp;</span>c<span class="built_in">&amp;</span>=d<span class="keyword">\\</span></span><br><span class="line">e<span class="built_in">&amp;</span>=f</span><br><span class="line"><span class="keyword">\end</span>&#123;aligned&#125;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<p><span class="math display">\[\begin{aligned}
-a&amp;=b&amp;c&amp;=d\\
-e&amp;=f
-\end{aligned}
-\]</span></p>
-<p>问题解决。EOF</p>
-]]></content>
-      <categories>
-        <category>技巧</category>
-      </categories>
-      <tags>
-        <tag>LaTeX</tag>
-        <tag>KaTeX</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>【转载】透彻理解交叉熵背后的直觉</title>
-    <url>/2019/03/04/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E9%80%8F%E5%BD%BB%E7%90%86%E8%A7%A3%E4%BA%A4%E5%8F%89%E7%86%B5%E8%83%8C%E5%90%8E%E7%9A%84%E7%9B%B4%E8%A7%89/</url>
+    <url>/2019/03/04/14c6b85b0f04/</url>
     <content><![CDATA[<blockquote><p>交叉熵（cross
 entropy）是深度学习中常用的一个概念，一般用来求目标与预测值之间的差距。以前做一些分类问题的时候，没有过多的注意，直接调用现成的库，用起来也比较方便。最近开始研究起对抗生成网络（GANs），用到了交叉熵，发现自己对交叉熵的理解有些模糊，不够深入。遂花了几天的时间从头梳理了一下相关知识点，才算透彻的理解了，特地记录下来，以便日后查阅。</p>
 <footer><strong>史丹利复合田</strong><cite><a href="https://blog.csdn.net/tsyccnh/article/details/79163834">一文搞懂交叉熵在机器学习中的使用，透彻理解交叉熵背后的直觉</a></cite></footer></blockquote>
@@ -353,61 +353,8 @@ entropy）是深度学习中常用的一个概念，一般用来求目标与预�
       </tags>
   </entry>
   <entry>
-    <title>一年又一年</title>
-    <url>/2024/04/04/%E4%B8%80%E5%B9%B4%E5%8F%88%E4%B8%80%E5%B9%B4/</url>
-    <content><![CDATA[<p>转眼已经 2024 年清明了。从 2021
-年秋招开始，就没怎么得空更新博客，两年多忙忙碌碌，尝试且完成了太多事，只是都没有落笔记录。毕业前换了电脑，连
-hexo
-都没装，最近发现之前博客的访客记录和评论区都没了，才又翻教程回忆当初的配置，所幸关键信息都有记录，博客得以起死回生。</p>
-<span id="more"></span>
-<p>两年前同一天，我为毕业论文殚精竭虑，感冒了还硬拉着合作者学弟在北馆咖啡厅讨论了一下午，晚饭后又转战独峰书院继续聊到九点。七小时高强度科研终于弥合了证明里一直过不去的
-gap，整个工作有了比较坚实的基础，一直忧虑毕业问题的我终于放心——「毕业论文这下能写完了」——尽管当时距离论文提交只剩不到两周，我还卡在理论部分，整篇论文大概只完成了四分之一。第二天我的嗓子完全哑了，之后连续几天只能手语和食堂大妈交流。</p>
-<p>一年前的清明假期，全组加班（三倍工资真香），此前不久我在公司的第一篇论文投稿刚被审稿人喷得体无完肤，这时正在紧锣密鼓重写论文赶
-4.7 的截稿日。与此同时，千辛万苦合入项目里的功能也因触发 bug 而被
-revert，一个巨大的烂摊子还等着我投稿完成后回去收拾。</p>
-<p>时间来到 2024 年，就在昨晚，我拖着连续 debug
-三天终于成功的疲惫身心回家，九点钟一沾枕头就陷入沉睡，半梦半醒间还在想，一觉醒来论文就该出结果了。晚上
-11
-点睁眼，看到手机上十条工作消息，心想一定是审稿结果出来了，一点开就看到群里合作者表示「不用倒立洗头了」——论文终于中了。</p>
-<p>在公司完成的这篇历时一年半投稿 4 次的论文，从 2022
-年投稿被审稿人喷，到 2024 年 rebuttal
-里我喷审稿人，见证了许多。这同一篇文章上一次投稿被接收为
-poster，让我得以第一次参加学术会议，如今又为我带来不到半年后再次以长文作者身份参加学术会议的机会。而我的毕业论文，在毕业后我又与优秀且耐心的合作者们继续完善，历经一次
-major revision
-后终于在去年年底被领域顶会接收（可惜两个会议时间相隔太近，这篇文章的会议只能请合作者前往参加了）。</p>
-<p>两年来，业余生活也算“沧海桑田”。2022
-上半年于毕业论文之外，在音乐和乐队上投入了巨量精力，当时的若干演出视频如今还可在
-b 站看到。2023
-年，经历了疾病的转折，在乐器演奏上几乎完全懈怠了，转向了单纯的音乐欣赏。“感谢”吴氏策划，这一年成为我给国家大剧院送钱最多的一年，古典音乐欣赏水平也上了几个台阶，有了自己最喜欢的歌剧唱段，多次在长途旅程中反复聆听。</p>
-<p>2022 下半年出差期间看了《边缘行者》，受其启发买了《赛博朋克
-2077》，年底通关了全部结局，这可能是将近十年来我第一个通关的 3A
-大作。2023 又买了 Switch
-和最新两部《塞尔达传说》，大半年拖拖拉拉，今年过年后的一个周末终于连续通关《王国之泪》和《旷野之息》——没错，这两部是并行玩的。2023
-TGA 后开始玩《博德之门
-3》，上个月也通关了。工作后业余时间更加自由，加上一台自己装的高性能 ITX
-和人生中第一台游戏机，终于无拘无束大过游戏瘾。这期间，还接着 2010
-年存的档打通了初中玩的《天之痕》，以硬核模式不知道第几周目再次通关《Disco
-Elysium》并上传几条游戏视频到 b
-站收获了一些好评，还花一个周末飞速通关「语言学小游戏」《巴别塔圣歌》。</p>
-<p>去年又重新启用了我尘封已久的护照，逮着东南亚和中亚的免签国家，五一在吴哥窟暴晒，十一在哈萨克乌兹别克猛吃。啊，至今晚上临睡前饿了，还会想念塔什干手抓饭中心的
-Pilaf，和暹粒 Malis
-的高棉菜。今年更是借着开会，在爱丁堡他乡遇故知，下次开会还有望在京都继续他乡遇故知。</p>
-<p>毕业后的第一个小章节似乎要告一段落，这或许正是重启博客更新的最佳时机。</p>
-]]></content>
-      <categories>
-        <category>随笔</category>
-      </categories>
-      <tags>
-        <tag>论文</tag>
-        <tag>游戏</tag>
-        <tag>音乐</tag>
-        <tag>旅游</tag>
-        <tag>生活</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>【转载】几种梯度下降方法和优化方法对比</title>
-    <url>/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/</url>
+    <url>/2019/03/11/9c2ab4054ae2/</url>
     <content><![CDATA[<p>我们在训练神经网络模型时，最常用的就是梯度下降，这篇博客主要介绍下几种梯度下降的变种（mini-batch
 gradient descent和stochastic gradient descent），关于Batch gradient
 descent（批梯度下降，BGD）就不细说了（一次迭代训练所有样本），因为这个大家都很熟悉，通常接触梯队下降后用的都是这个。这里主要介绍Mini-batch
@@ -437,9 +384,9 @@ descent（SGD）就被提出来了，SGD的思想是每次只训练一个样本�
 deep learning 课），每次更新的方向，不想batch gradient
 descent那样每次都朝着最优点的方向逼近，会在最优点附近震荡）。因为每次训练的都是随机的一个样本，会导致导致梯度的方向不会像BGD那样朝着最优点。</p>
 <p>注意：代码中的随机把数据打乱很重要，因为这个随机性相当于引入了“噪音”，正是因为这个噪音，使得SGD可能会避免陷入局部最优解中。</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/1.jpg" class="" title="sgd">
+<img data-src="/2019/03/11/9c2ab4054ae2/1.jpg" class="" title="sgd">
 <p>下面来对比下SGD和BGD的代价函数随着迭代次数的变化图：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/3.jpg" class="" title="对比">
+<img data-src="/2019/03/11/9c2ab4054ae2/3.jpg" class="" title="对比">
 <p>可以看到SGD的代价函数随着迭代次数是震荡式的下降的（因为每次用一个样本，有可能方向是背离最优点的）</p>
 <h2 id="三mini-batch-gradient-descent">三、Mini-batch gradient
 descent</h2>
@@ -455,7 +402,7 @@ gradient descent（a.k.a stochastic mini-batch gradient
 descent）简称为SGD，所以当你看到深度学习中的SGD，一般指的就是mini-batch
 gradient descent）。下面用几张图来展示下mini-batch gradient
 descent的原理（图片来自ng deep learning 课）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/4.jpg" class="" title="mini-batch">
+<img data-src="/2019/03/11/9c2ab4054ae2/4.jpg" class="" title="mini-batch">
 <p>下面直接给出mini-batch gradient descent的代码实现：</p>
 <ol type="1">
 <li>首先要把训练集分成多个batch</li>
@@ -467,9 +414,9 @@ descent的原理（图片来自ng deep learning 课）：</p>
 <figure class="highlight py"><table><tr><td class="code"><pre><span class="line">seed = <span class="number">0</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0</span>, num_iterations):</span><br><span class="line">    <span class="comment"># Define the random minibatches. We increment the seed to reshuffle differently the dataset after each epoch</span></span><br><span class="line">    seed = seed + <span class="number">1</span></span><br><span class="line">    minibatches = random_mini_batches(X, Y, mini_batch_size, seed)</span><br><span class="line">    <span class="keyword">for</span> minibatch <span class="keyword">in</span> minibatches:</span><br><span class="line">        <span class="comment"># Select a minibatch</span></span><br><span class="line">        (minibatch_X, minibatch_Y) = minibatch</span><br><span class="line">        <span class="comment"># Forward propagation</span></span><br><span class="line">        AL, caches = forward_propagation(minibatch_X, parameters)</span><br><span class="line">        <span class="comment"># Compute cost</span></span><br><span class="line">        cost = compute_cost(AL, minibatch_Y)</span><br><span class="line">        <span class="comment"># Backward propagation</span></span><br><span class="line">        grads = backward_propagation(AL, minibatch_Y, caches)</span><br><span class="line">        parameters = update_parameters(parameters, grads, learning_rate)</span><br></pre></td></tr></table></figure>
 <p>下面来看mini-batch gradient descent 和 stochastic gradient descent
 在下降时的对比图：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/2.jpg" class="" title="gd">
+<img data-src="/2019/03/11/9c2ab4054ae2/2.jpg" class="" title="gd">
 <p>下面是mini-batch gradient descent的代价函数随着迭代次数的变化图：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/2.jpg" class="" title="gd">
+<img data-src="/2019/03/11/9c2ab4054ae2/2.jpg" class="" title="gd">
 <p>从图中能够看出，mini-batch gradient descent
 相对SGD在下降的时候，相对平滑些（相对稳定），不像SGD那样震荡的比较厉害。mini-batch
 gradient descent的一个缺点是增加了一个超参数 batch_sizebatch_size
@@ -498,13 +445,13 @@ average）</li>
 指数加权平均（Exponentially weighted average）</h2>
 <p>指数加权平均是处理时间序列的常用工具，下面用一个例子来引入指数加权平均的概念。下图是一个180天的气温图（图片来自ng
 Coursera deep learning 课）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/8.jpg" class="" title="ewa">
+<img data-src="/2019/03/11/9c2ab4054ae2/8.jpg" class="" title="ewa">
 <p>如果我们想找一条线去拟合这个数据，该怎么去做呢。我们知道某一天的气温其实和前几天（前一段时间）相关的，并不是一个独立的随机事件，比如夏天气温都会普遍偏高些，冬天气温普遍都会低一些。我们用<span
 class="math inline">\([θ1,θ2,...,θn]\)</span>表示第1，2，…，n天的气温，我们有：
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/9.jpg" class="" title="temperature"></p>
+<img data-src="/2019/03/11/9c2ab4054ae2/9.jpg" class="" title="temperature"></p>
 <p>根据上面的公式我们能够画出这条线，如下图所示（图片来自ng deep
 learning课）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/10.jpg" class="" title="fit">
+<img data-src="/2019/03/11/9c2ab4054ae2/10.jpg" class="" title="fit">
 <p>下面来正式的看一下 指数加权平均（Exponentially weighted average）
 的定义：</p>
 <p><span class="math display">\[V_t=βV_(t−1)+(1−β)θ_t\]</span></p>
@@ -535,7 +482,7 @@ class="math inline">\(\frac{1}{1−β}\)</span>。</p>
 class="math inline">\(\frac{1}{e}\)</span>，我是不太明白的，搜了下资料也没找到更好的资料，希望路过的有知道的大神，在下面评论交流。）</p>
 <p>下面再看下 β 取不同值时，曲线的拟合情况（图片来自ng deep
 learning课）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/11.jpg" class="" title="fit">
+<img data-src="/2019/03/11/9c2ab4054ae2/11.jpg" class="" title="fit">
 <p>从上图能够看出：</p>
 <p>当 β 较大时（β=0.98
 相当于每一点前50天的平均气温），曲线波动相对较小更加平滑（绿色曲线），因为对很多天的气温做了平均处理，正因为如此，曲线还会右移。
@@ -569,10 +516,10 @@ class="math inline">\(\beta_t\to0\)</span>，这样在后期 Vt 就和
 <h2 id="三动量momentum">三、动量（momentum）</h2>
 <p>        我们使用SGD（stochastic mini-batch gradient
 descent，深度学习中一般称之为SGD）训练参数时，有时候会下降的非常慢，并且可能会陷入到局部最小值中，如下图所示（图片来自李宏毅《一天搞懂深度学习》）。</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/12.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/12.jpg" class="">
 <p>下面给出动量（momentum）的公式：</p>
 <p>动量的引入就是为了加快学习过程，特别是对于高曲率、小但一致的梯度，或者噪声比较大的梯度能够很好的加快学习过程。动量的主要思想是积累了之前梯度指数级衰减的移动平均（前面的指数加权平均），下面用一个图来对比下，SGD和动量的区别：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/13.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/13.jpg" class="">
 <p>区别：
 SGD每次都会在当前位置上沿着负梯度方向更新（下降，沿着正梯度则为上升），并不考虑之前的方向梯度大小等等。而动量（moment）通过引入一个新的变量
 vv
@@ -581,7 +528,7 @@ vv
 <p>最直观的理解就是，若当前的梯度方向与累积的历史梯度方向一致，则当前的梯度会被加强，从而这一步下降的幅度更大。若当前的梯度方向与累积的梯度方向不一致，则会减弱当前下降的梯度幅度。</p>
 </blockquote>
 <p>用一个图来形象的说明下上面这段话（图片来自李宏毅《一天搞懂深度学习》）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/14.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/14.jpg" class="">
 <p>下面给出动量（momentum）的公式：</p>
 <p><span class="math display">\[\begin{aligned}
 &amp;V_{dW}=βV_{dW}+(1−β)dW        \\
@@ -591,10 +538,10 @@ vv
 <p>关于这个公式目前主要有<strong>两种形式</strong>，*一种是原论文里的公式：（原论文：<a
 href="http://www.cs.toronto.edu/~hinton/absps/momentum.pdf">On the
 importance of initialization and momentum in deep learning</a>）</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/15.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/15.jpg" class="">
 <p>使用这个公式的有： 1、 goodfellow和bengio的《deep learning》书：（<a
 href="http://www.deeplearningbook.org/contents/optimization.html">8.3.2节
-momentum</a>） <img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/16.jpg" class=""> 2、
+momentum</a>） <img data-src="/2019/03/11/9c2ab4054ae2/16.jpg" class=""> 2、
 CS231N课（链接：http://cs231n.github.io/neural-networks-3/）： 3、
 keras： 4、Intel的chainer框架</p>
 <p>*第二种是类似ng给的：</p>
@@ -615,7 +562,7 @@ href="https://pytorch.org/docs/master/_modules/torch/optim/sgd.html#SGD"></a>
 <p>Nesterov
 Momentum是对Momentum的改进，可以理解为nesterov动量在标准动量方法中添加了一个校正因子。用一张图来形象的对比下momentum和nesterov
 momentum的区别（图片来自：http://ttic.uchicago.edu/~shubhendu/Pages/Files/Lecture6_pauses.pdf）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/17.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/17.jpg" class="">
 <p>公式：</p>
 <p><span class="math display">\[\begin{aligned}\\
 v_{t+1}&amp;=\mu v_t - \varepsilon \nabla f(\theta_t + \mu v_t) \\
@@ -646,7 +593,7 @@ class="math inline">\(\mathrm{d}θ\)</span>
 Gradient）</h2>
 <p>通常，我们在每一次更新参数时，对于所有的参数使用相同的学习率。而AdaGrad算法的思想是：每一次更新参数时（一次迭代），不同的参数使用不同的学习率。AdaGrad
 的公式为：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/18.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/18.jpg" class="">
 <blockquote>
 <p>关于AdaGrad，goodfellow和bengio的《deep
 learning》书中对此的描述是：在凸优化中，AdaGrad算法具有一些令人满意的理论性质。但是，在实际使用中已经发现，对于训练深度神经网络模型而言，从训练开始时累积梯度平方会导致学习率过早过量的减少。AdaGrad算法在某些深度学习模型上效果不错，但不是全部。</p>
@@ -675,7 +622,7 @@ optimizer is usually a good choice for recurrent neural networks.</p>
 <h2 id="八adamadaptive-moment-estimation">八、Adam（Adaptive Moment
 Estimation）</h2>
 <p>Adam实际上是把momentum和RMSprop结合起来的一种算法，算法流程是（摘自adam论文）：</p>
-<img data-src="/2019/03/11/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%87%A0%E7%A7%8D%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E6%96%B9%E6%B3%95%E5%92%8C%E4%BC%98%E5%8C%96%E6%96%B9%E6%B3%95%E5%AF%B9%E6%AF%94/19.jpg" class="">
+<img data-src="/2019/03/11/9c2ab4054ae2/19.jpg" class="">
 <blockquote>
 <p>实践表明，Adam算法在很多种不同的神经网络结构中都是非常有效的。</p>
 </blockquote>
@@ -714,7 +661,7 @@ https://blog.csdn.net/u012328159/article/details/80311892
   </entry>
   <entry>
     <title>【转载】哪些句子拯救了你的英文邮件？</title>
-    <url>/2019/03/22/%E3%80%90%E8%BD%AC%E8%BD%BD%E3%80%91%E5%93%AA%E4%BA%9B%E5%8F%A5%E5%AD%90%E6%8B%AF%E6%95%91%E4%BA%86%E4%BD%A0%E7%9A%84%E8%8B%B1%E6%96%87%E9%82%AE%E4%BB%B6%EF%BC%9F/</url>
+    <url>/2019/03/22/0524a4239ba6/</url>
     <content><![CDATA[<p>近日因为申请、填表等缘故，经常要与外方学校邮件交流，虽然之前在外企实习时有一定的英文邮件经验，有些地方还是拿捏不好。在知乎上看到一篇优质文章，转载至此以备查用。</p>
 <span id="more"></span>
 <hr />
@@ -2103,8 +2050,61 @@ style="display: inline-flex; align-items: center;">​<svg class="Zi Zi--ArrowDo
       </tags>
   </entry>
   <entry>
+    <title>一年又一年</title>
+    <url>/2024/04/04/c2e408893aa7/</url>
+    <content><![CDATA[<p>转眼已经 2024 年清明了。从 2021
+年秋招开始，就没怎么得空更新博客，两年多忙忙碌碌，尝试且完成了太多事，只是都没有落笔记录。毕业前换了电脑，连
+hexo
+都没装，最近发现之前博客的访客记录和评论区都没了，才又翻教程回忆当初的配置，所幸关键信息都有记录，博客得以起死回生。</p>
+<span id="more"></span>
+<p>两年前同一天，我为毕业论文殚精竭虑，感冒了还硬拉着合作者学弟在北馆咖啡厅讨论了一下午，晚饭后又转战独峰书院继续聊到九点。七小时高强度科研终于弥合了证明里一直过不去的
+gap，整个工作有了比较坚实的基础，一直忧虑毕业问题的我终于放心——「毕业论文这下能写完了」——尽管当时距离论文提交只剩不到两周，我还卡在理论部分，整篇论文大概只完成了四分之一。第二天我的嗓子完全哑了，之后连续几天只能手语和食堂大妈交流。</p>
+<p>一年前的清明假期，全组加班（三倍工资真香），此前不久我在公司的第一篇论文投稿刚被审稿人喷得体无完肤，这时正在紧锣密鼓重写论文赶
+4.7 的截稿日。与此同时，千辛万苦合入项目里的功能也因触发 bug 而被
+revert，一个巨大的烂摊子还等着我投稿完成后回去收拾。</p>
+<p>时间来到 2024 年，就在昨晚，我拖着连续 debug
+三天终于成功的疲惫身心回家，九点钟一沾枕头就陷入沉睡，半梦半醒间还在想，一觉醒来论文就该出结果了。晚上
+11
+点睁眼，看到手机上十条工作消息，心想一定是审稿结果出来了，一点开就看到群里合作者表示「不用倒立洗头了」——论文终于中了。</p>
+<p>在公司完成的这篇历时一年半投稿 4 次的论文，从 2022
+年投稿被审稿人喷，到 2024 年 rebuttal
+里我喷审稿人，见证了许多。这同一篇文章上一次投稿被接收为
+poster，让我得以第一次参加学术会议，如今又为我带来不到半年后再次以长文作者身份参加学术会议的机会。而我的毕业论文，在毕业后我又与优秀且耐心的合作者们继续完善，历经一次
+major revision
+后终于在去年年底被领域顶会接收（可惜两个会议时间相隔太近，这篇文章的会议只能请合作者前往参加了）。</p>
+<p>两年来，业余生活也算“沧海桑田”。2022
+上半年于毕业论文之外，在音乐和乐队上投入了巨量精力，当时的若干演出视频如今还可在
+b 站看到。2023
+年，经历了疾病的转折，在乐器演奏上几乎完全懈怠了，转向了单纯的音乐欣赏。“感谢”吴氏策划，这一年成为我给国家大剧院送钱最多的一年，古典音乐欣赏水平也上了几个台阶，有了自己最喜欢的歌剧唱段，多次在长途旅程中反复聆听。</p>
+<p>2022 下半年出差期间看了《边缘行者》，受其启发买了《赛博朋克
+2077》，年底通关了全部结局，这可能是将近十年来我第一个通关的 3A
+大作。2023 又买了 Switch
+和最新两部《塞尔达传说》，大半年拖拖拉拉，今年过年后的一个周末终于连续通关《王国之泪》和《旷野之息》——没错，这两部是并行玩的。2023
+TGA 后开始玩《博德之门
+3》，上个月也通关了。工作后业余时间更加自由，加上一台自己装的高性能 ITX
+和人生中第一台游戏机，终于无拘无束大过游戏瘾。这期间，还接着 2010
+年存的档打通了初中玩的《天之痕》，以硬核模式不知道第几周目再次通关《Disco
+Elysium》并上传几条游戏视频到 b
+站收获了一些好评，还花一个周末飞速通关「语言学小游戏」《巴别塔圣歌》。</p>
+<p>去年又重新启用了我尘封已久的护照，逮着东南亚和中亚的免签国家，五一在吴哥窟暴晒，十一在哈萨克乌兹别克猛吃。啊，至今晚上临睡前饿了，还会想念塔什干手抓饭中心的
+Pilaf，和暹粒 Malis
+的高棉菜。今年更是借着开会，在爱丁堡他乡遇故知，下次开会还有望在京都继续他乡遇故知。</p>
+<p>毕业后的第一个小章节似乎要告一段落，这或许正是重启博客更新的最佳时机。</p>
+]]></content>
+      <categories>
+        <category>随笔</category>
+      </categories>
+      <tags>
+        <tag>论文</tag>
+        <tag>游戏</tag>
+        <tag>音乐</tag>
+        <tag>旅游</tag>
+        <tag>生活</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>一年后</title>
-    <url>/2021/03/09/%E4%B8%80%E5%B9%B4%E5%90%8E/</url>
+    <url>/2021/03/09/bca91d311b84/</url>
     <content><![CDATA[<p>快一年没有更新blog了。一年来发生了很多，生活和想法也有了若干变化。近来感觉记性越来越不好了，有些未来或许有用但又没什么理由/门类写到OneNote里的东西，似乎还是可以放在这里。</p>
 <p>之后或许会多写一些这样的流水账，也会有些可以公开的技术文章，但写长文很累，或许有空会写一篇吧。毕竟上周法语课学了一句谚语，«
 Petit à petit, l'oiseau fait son nid. »</p>
@@ -2128,7 +2128,7 @@ Petit à petit, l'oiseau fait son nid. »</p>
   </entry>
   <entry>
     <title>关于深度学习中的优化目标</title>
-    <url>/2021/09/10/%E5%85%B3%E4%BA%8E%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E4%B8%AD%E7%9A%84%E4%BC%98%E5%8C%96%E7%9B%AE%E6%A0%87/</url>
+    <url>/2021/09/10/6f238cd4329d/</url>
     <content><![CDATA[<p>前一篇文章提到了L2 norm（weight
 decay）和以高斯分布为先验的最大后验估计（Maximum a
 Posteriori，MAP）的等价性，顺手整理一下和深度学习优化目标相关的几个概念。</p>
@@ -2251,7 +2251,7 @@ Yoshua Bengio, and Aaron Courville. Deep learning. MIT press, 2016.</p>
   </entry>
   <entry>
     <title>关于深度学习中的正则化</title>
-    <url>/2021/09/10/%E5%85%B3%E4%BA%8E%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E4%B8%AD%E7%9A%84%E6%AD%A3%E5%88%99%E5%8C%96/</url>
+    <url>/2021/09/10/f11a8793bd6e/</url>
     <content><![CDATA[<p>简单串一下“花书”里的正则化相关内容。本篇主要关注范数正则化，之后有机会再整理bagging、dropout和BN。</p>
 <p>总体而言，设关于参数<span
 class="math inline">\(w\in\mathbb{R}^n\)</span>的正则化项为<span
@@ -2368,7 +2368,7 @@ Yoshua Bengio, and Aaron Courville. Deep learning. MIT press, 2016.</p>
   </entry>
   <entry>
     <title>华为暑期实习软件开发笔试复盘</title>
-    <url>/2021/03/31/%E5%8D%8E%E4%B8%BA%E6%9A%91%E6%9C%9F%E5%AE%9E%E4%B9%A0%E8%BD%AF%E4%BB%B6%E5%BC%80%E5%8F%91%E7%AC%94%E8%AF%95%E5%A4%8D%E7%9B%98/</url>
+    <url>/2021/03/31/af1565acf6ad/</url>
     <content><![CDATA[<p><strong>声明</strong>：本文只是本人笔试后对试题的复盘反思，从未由此牟利.如侵犯任何一方权利，请通过本站提供的联系方式联系本人，本人将立刻删除本文。</p>
 <span id="more"></span>
 <hr />
@@ -2429,7 +2429,7 @@ class="math inline">\((i,j)\)</span>二元组当key就行，传统写C/C++一般
   </entry>
   <entry>
     <title>【整理】卷积本质和运算</title>
-    <url>/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/</url>
+    <url>/2019/08/31/909ab125366c/</url>
     <content><![CDATA[<p>CMU 的 16720 "Computer Vision"
 第二节课“复习”了卷积相关概念，当然对我来说基本是预习:-)
 而且因为太累了上课还睡着了一会儿，导致基本没咋听懂。今天看PPT发现上面除了图啥也无，还真有我自己做PPT的风范:-)
@@ -2443,17 +2443,17 @@ href="https://www.zhihu.com/question/22298352">如何通俗易懂地解释卷积
 链接：https://www.zhihu.com/question/22298352/answer/34267457 来源：知乎
 著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。</p>
 <p>不推荐用“反转/翻转/反褶/对称”等解释卷积。好好的信号为什么要翻转？导致学生难以理解卷积的物理意义。这个其实非常简单的概念，国内的大多数教材却没有讲透。直接看图，不信看不懂。以离散信号为例，连续信号同理。已知</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-1.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-1.jpg" class="">
 <p>已知</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-2.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-2.jpg" class="">
 <p>下面通过演示求的过程，揭示卷积的物理意义。第一步，乘以并平移到位置0：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-3.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-3.jpg" class="">
 <p>第二步，乘以并平移到位置1：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-4.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-4.jpg" class="">
 <p>第三步，乘以并平移到位置2：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-5.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-5.jpg" class="">
 <p>最后，把上面三个图叠加，就得到了：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/1-6.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/1-6.jpg" class="">
 <p>简单吧？无非是平移（没有反褶！）、叠加。</p>
 <p>从这里，可以看到卷积的重要的物理意义是：一个函数（如：单位响应）在另一个函数（如：输入信号）上的加权叠加。</p>
 <p>重复一遍，这就是卷积的意义：加权叠加。对于线性时不变系统，如果知道该系统的单位响应，那么将单位响应和输入信号求卷积，就相当于把输入信号的各个时间点的单位响应
@@ -2525,7 +2525,7 @@ class="math inline">\(t=0\)</span>
 class="math inline">\(t=0\)</span> 时刻的输入 <span
 class="math inline">\(f(0)\)</span> 的值将衰减为<span
 class="math inline">\(f(0)g(T)\)</span>。</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-1.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-1.jpg" class="">
 <p>​​考虑到信号是连续输入的，也就是说，每个时刻都有新的信号进来，所以，最终输出的是所有之前输入信号的累积效果。如下图所示，在
 <span class="math inline">\(T=10\)</span>
 时刻，输出结果跟图中带标记的区域整体有关。其中，f(10)因为是刚输入的，所以其输出结果应该是
@@ -2538,21 +2538,21 @@ class="math inline">\(T=10\)</span>时刻的输出信号值，这个结果也是
 class="math inline">\(f\)</span>和<span
 class="math inline">\(g\)</span>两个函数在<span
 class="math inline">\(T=10\)</span>时刻的卷积值。​</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-2.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-2.jpg" class="">
 <p>​​显然，上面的对应关系看上去比较难看，是拧着的，所以，我们把<span
 class="math inline">\(g\)</span>函数对折一下，变成了<span
 class="math inline">\(g(-t)\)</span>，这样就好看一些了。看到了吗？这就是为什么卷积要“卷”，要翻转的原因，这是从它的物理意义中给出的。​</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-3.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-3.jpg" class="">
 <p>上图虽然没有拧着，已经顺过来了，但看上去还有点错位，所以再进一步平移<span
 class="math inline">\(T\)</span>个单位，就是下图。它就是本文开始给出的卷积定义的一种图形的表述：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-4.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-4.jpg" class="">
 <p>所以，在以上计算T时刻的卷积时，要维持的约束就是： <span
 class="math inline">\(t+ (T-t) = T\)</span>
 。这种约束的意义，大家可以自己体会。</p>
 <h4 id="例3图像处理">例3：图像处理</h4>
 <p>还是引用知乎问题 如何通俗易懂地解释卷积？中 马同学的例子。</p>
 <p>图像可以表示为矩阵形式（下图摘自马同学的文章）：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-5.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-5.jpg" class="">
 <p>对图像的处理函数（如平滑，或者边缘提取），也可以用一个<span
 class="math inline">\(g\)</span>矩阵来表示，如：</p>
 <p><span class="math display">\[g=\left[
@@ -2569,7 +2569,7 @@ class="math display">\[f(x,y)=a_{x,y}g(x,y)=b_{x,y}\]</span></p>
 class="math inline">\(g\)</span>的在<span
 class="math inline">\((u，v)\)</span>处的卷积 <span
 class="math inline">\(f*g(u,v)\)</span> 该如何计算呢？​</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-6.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-6.jpg" class="">
 <p>首先我们在原始图像矩阵中取出<span
 class="math inline">\((u，v)\)</span>处的矩阵：</p>
 <p><span class="math display">\[f=\left[
@@ -2588,7 +2588,7 @@ class="math inline">\((u，v)\)</span>处的矩阵：</p>
 \end{matrix}
 \right]\]</span></p>
 <p>可对比下图：</p>
-<img data-src="/2019/08/31/%E5%8D%B7%E7%A7%AF%E6%9C%AC%E8%B4%A8%E5%92%8C%E8%BF%90%E7%AE%97/2-7.jpg" class="">
+<img data-src="/2019/08/31/909ab125366c/2-7.jpg" class="">
 <p>计算卷积时，就可以用 <span class="math inline">\(f\)</span> 和 <span
 class="math inline">\(g&#39;\)</span> 的内积：</p>
 <p><span class="math display">\[f*g(u,v)=a_{u-1,v-1}\times
@@ -2641,113 +2641,8 @@ class="citation" data-cites="风云钢炮">@风云钢炮</span></a>
       </tags>
   </entry>
   <entry>
-    <title>基于Nginx配置Web视频流媒体服务器</title>
-    <url>/2019/03/05/%E5%9F%BA%E4%BA%8ENginx%E9%85%8D%E7%BD%AEWeb%E8%A7%86%E9%A2%91%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8/</url>
-    <content><![CDATA[<p>本来在一心折腾基于Hexo的自建博客，恰好室友提出这样一个需求：在自己的作品集里放一个二维码，扫一下就可以转到一个网页播放自己的视频，但是又要求不能有广告，因此商业性质的视频网站都不能使用。手头刚好有一个AWS的服务器，于是决心尝试一下这类还没碰过的技术。</p>
-<p>Web视频流媒体服务器主要应该满足以下几个功能：</p>
-<ol type="1">
-<li>提供http服务</li>
-<li>具备传输视频流的能力</li>
-<li>可以在浏览器中播放视频</li>
-</ol>
-<span id="more"></span>
-<p>一般来说，会将视频传输和视频播放<a
-href="https://stackoverflow.com/questions/39407346/video-on-demand-websites-server-setup">放置在两个服务器上</a>，因为视频的解码、传输本身就要消耗大量资源。但现在资源有限，因此先拿一个服务器将就一下。</p>
-<h3 id="技术选型">技术选型</h3>
-<p>查阅资料发现，Nginx本身就提供了视频流传输和播放功能，对于mp4格式，只需要借用现成插件即可。</p>
-<ul>
-<li>Nginx: nginx-1.15.9</li>
-<li>mp4: nginx_mod_h264_streaming-2.2.7</li>
-</ul>
-<p>另外，在尝试使用Nginx自带播放器播放，发现加载速度极慢难以忍受后，选择使用JW
-Player</p>
-<ul>
-<li>播放器: <a href="https://www.jwplayer.com/">JW Player</a></li>
-</ul>
-<h3 id="安装nginx">安装nginx</h3>
-<p>需要手动编译，以包含一些需要的附加功能（如mp4等）</p>
-<p>nginx_mod_h264_streaming的下载地址:
-http://h264.code-shop.com/trac/wiki/Mod-H264-Streaming-Nginx-Version2</p>
-<p>nginx-rtmp-module下载地址:
-https://github.com/arut/nginx-rtmp-module</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">$ sudo apt update</span><br><span class="line">$ sudo apt install libpcre3 libpcre3-dev     <span class="comment"># nginx需要</span></span><br><span class="line">$ sudo apt install libssl-dev</span><br><span class="line">$ sudo apt-get install zlib1g-dev</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 nginx</span></span><br><span class="line">$ wget http://nginx.org/download/nginx-1.15.9.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 h264 mod</span></span><br><span class="line">$ wget http://h264.code-shop.com/download/ngi7.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 rtmp</span></span><br><span class="line">$ git <span class="built_in">clone</span> https://github.com/arut/nginx-rtmp-module</span><br><span class="line"></span><br><span class="line">$ tar -zxvf nginx-1.15.9.tar.gz</span><br><span class="line">$ tar -zxvf nginx_mod_h264_streaming-2.2.7.tar.gz</span><br><span class="line"></span><br><span class="line">$ <span class="built_in">cd</span> nginx-1.15.9/</span><br><span class="line">$ ./configure --prefix=/usr/local/nginx --add-module=../nginx_mod_h264_streaming-2.2.7 \</span><br><span class="line"> --add-module=../nginx-rtmp-module --with-http_flv_module --with-http_mp4_module \</span><br><span class="line"> --with-http_gzip_static_module --with-http_stub_status_module</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>此时如果执行<code>make</code>会报错：</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">In file included from ../nginx_mod_h264_streaming-2.2.7/src/ngx_http_h:</span><br><span class="line">../nginx_mod_h264_streaming-2.2.7/src/ngx_http_streaming_module.c: In ndler’:</span><br><span class="line">../nginx_mod_h264_streaming-2.2.7/src/ngx_http_streaming_module.c:158:st_t &#123;aka struct ngx_http_request_s&#125;’ has no member named ‘zero_in_uriri’?</span><br><span class="line">   <span class="keyword">if</span> (r-&gt;zero_in_uri)</span><br><span class="line">          ^~~~~~~~~~~</span><br><span class="line">          plus_in_uri</span><br><span class="line">objs/Makefile:1262: recipe <span class="keyword">for</span> target <span class="string">&#x27;objs/addon/src/ngx_http_h264_st</span></span><br><span class="line"><span class="string">make[1]: *** [objs/addon/src/ngx_http_h264_streaming_module.o] Error 1</span></span><br><span class="line"><span class="string">make[1]: Leaving directory &#x27;</span>/home/username/downloads/nginx-1.15.9<span class="string">&#x27;</span></span><br><span class="line"><span class="string">Makefile:11: recipe for target &#x27;</span>install<span class="string">&#x27; failed</span></span><br><span class="line"><span class="string">make: *** [install] Error 2</span></span><br><span class="line"><span class="string"></span></span><br></pre></td></tr></table></figure>
-<p>编辑<code>objs/Makefile</code>，去掉编译选项的<code>-Werror</code></p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">$ sudo make install</span><br><span class="line">$ sudo ln -s /usr/local/nginx/sbin/nginx /usr/bin/nginx</span><br><span class="line">$ sudo nginx</span><br></pre></td></tr></table></figure>
-<p>此时通过浏览器访问服务器，若看到默认欢迎页面，说明nginx安装成功。</p>
-<h3 id="配置nginx">配置nginx</h3>
-<p>在若干次尝试中借鉴了多篇文章，最终的配置如下：</p>
-<figure class="highlight plaintext"><figcaption><span>/usr/local/nginx/conf/nginx.conf</span></figcaption><table><tr><td class="code"><pre><span class="line">#user  nobody;</span><br><span class="line">worker_processes  4;</span><br><span class="line"></span><br><span class="line">error_log  logs/error.log;</span><br><span class="line">#error_log  logs/error.log  notice;</span><br><span class="line">#error_log  logs/error.log  info;</span><br><span class="line"></span><br><span class="line">pid        logs/nginx.pid;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">events &#123;</span><br><span class="line">    use epoll;</span><br><span class="line">    worker_connections  65535;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">rtmp &#123;</span><br><span class="line">    server &#123;</span><br><span class="line">        listen 1935;</span><br><span class="line">        application vod &#123;</span><br><span class="line">            play /home/username/web_service/rtmp;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">http &#123;</span><br><span class="line">    include       mime.types;</span><br><span class="line">    default_type  application/octet-stream;</span><br><span class="line"></span><br><span class="line">    sendfile        on;</span><br><span class="line">    #tcp_nopush     on;</span><br><span class="line"></span><br><span class="line">    #keepalive_timeout  0;</span><br><span class="line">    keepalive_timeout  65;</span><br><span class="line">    server_names_hash_bucket_size 128;</span><br><span class="line">    client_header_buffer_size 32k;</span><br><span class="line">    large_client_header_buffers 4 32k;</span><br><span class="line"></span><br><span class="line">    gzip  on;</span><br><span class="line">    gzip_min_length 1k;</span><br><span class="line">    gzip_buffers 4 16k;</span><br><span class="line">    gzip_comp_level 2;</span><br><span class="line">    gzip_types text/plain application/x-javascript text/css application/xml;</span><br><span class="line">    gzip_vary on;</span><br><span class="line"></span><br><span class="line">    output_buffers 1 32k;</span><br><span class="line">    postpone_output 1460;</span><br><span class="line">    client_header_timeout 3m;</span><br><span class="line">    client_body_timeout 3m;</span><br><span class="line">    send_timeout 3m;</span><br><span class="line">    tcp_nopush on;</span><br><span class="line">    tcp_nodelay on;</span><br><span class="line"></span><br><span class="line">    open_file_cache max=64 inactive=30d;</span><br><span class="line">    open_file_cache_min_uses 1;</span><br><span class="line">    open_file_cache_valid 3m;</span><br><span class="line"></span><br><span class="line">    server &#123;</span><br><span class="line">        listen       8081;</span><br><span class="line">        server_name  x.x.x.x;</span><br><span class="line"></span><br><span class="line">        charset utf-8;</span><br><span class="line"></span><br><span class="line">        location ~ \.mp4$ &#123;</span><br><span class="line">            root   /home/username/web_service/mp4/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        location ~ \.m4v$ &#123;</span><br><span class="line">            root   /home/username/web_service/m4v/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location ~ \.flv$ &#123;</span><br><span class="line">            root   /home/username/web_service/flv/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location /stat &#123;</span><br><span class="line">            rtmp_stat all;</span><br><span class="line">            rtmp_stat_stylesheet stat.xsl;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location /stat.xsl</span><br><span class="line">            root /home/username/downloads/nginx-rtmp-module;</span><br><span class="line">        &#125;</span><br><span class="line">        #error_page  404              /404.html;</span><br><span class="line"></span><br><span class="line">        # redirect server error pages to the static page /50x.html</span><br><span class="line">        #</span><br><span class="line">        error_page   500 502 503 504  /50x.html;</span><br><span class="line">        location = /50x.html &#123;</span><br><span class="line">            root   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    server &#123;</span><br><span class="line">        listen       80;</span><br><span class="line">        server_name  x.x.x.x;</span><br><span class="line"></span><br><span class="line">        charset utf-8;</span><br><span class="line"></span><br><span class="line">        location / &#123;</span><br><span class="line">            root   /home/username/web_service/html/;</span><br><span class="line">            index  index.html index.htm;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        # redirect server error pages to the static page /50x.html</span><br><span class="line">        error_page   500 502 503 504  /50x.html;</span><br><span class="line">        location = /50x.html &#123;</span><br><span class="line">            root   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>主要思路是，在8081端口提供视频文件的HTTP服务，在80端口提供视频播放的页面以供访问。</p>
-<p>本来试图通过rtmp推流，但不知道为什么，ffmpeg可以正常读取原视频，写流时也未报错，但无法正常推流，最终作罢。</p>
-<p>通过这样的设置，重启nginx：</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo nginx -s reload</span><br></pre></td></tr></table></figure>
-<p>访问<code>http://x.x.x.x:8081/xxx.mp4</code>即可播放mp4格式的视频。但由于使用了nginx自带的播放器，所以卡顿非常明显，体验不好，考虑使用专用播放器。</p>
-<h3 id="播放">播放</h3>
-<p>播放器选择了JW
-Player，似乎以前是开源的，但现在变为免费试用六个月。只需要在官网注册，即可获得专用代码，复制到html中即可。</p>
-<p>编辑<code>/home/username/web_service/html/index.html</code>如下</p>
-<figure class="highlight html"><figcaption><span>index.html</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">heml</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- 在这里替换自己的JW Player id --&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span> <span class="attr">src</span>=<span class="string">&quot;https://cdn.jwplayer.com/libraries/xxxx.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span> <span class="attr">src</span>=<span class="string">&quot;getParam.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">&quot;Content-Type&quot;</span> <span class="attr">content</span>=<span class="string">&quot;text/html;charset=utf-8&quot;</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">body</span> <span class="attr">bgcolor</span>=<span class="string">&quot;#000000&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;myElement&quot;</span>&gt;</span>Loading the page...<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            <span class="keyword">var</span> file_name=<span class="title function_">getParam</span>(<span class="string">&#x27;id&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">            <span class="variable language_">console</span>.<span class="title function_">log</span>(file_name);</span></span><br><span class="line"><span class="language-javascript">            <span class="title function_">jwplayer</span>(<span class="string">&quot;myElement&quot;</span>).<span class="title function_">setup</span>(&#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="attr">file</span>: <span class="string">&quot;http://x.x.x.x:8081/&quot;</span> + file_name,</span></span><br><span class="line"><span class="language-javascript">                <span class="comment">// image: &quot;data/myposter.jpg&quot;,</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">title</span>: file_name,</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript">        </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
-<p>方便起见，编写了一个js函数用来获取GET请求参数，从而指定播放文件</p>
-<figure class="highlight js"><figcaption><span>getParam.js</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">getParam</span>(<span class="params">paramName</span>) &#123;</span><br><span class="line">    paramValue = <span class="string">&quot;&quot;</span>, isFound = !<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="title function_">indexOf</span>(<span class="string">&quot;?&quot;</span>) == <span class="number">0</span> &amp;&amp; <span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="title function_">indexOf</span>(<span class="string">&quot;=&quot;</span>) &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        arrSource = <span class="built_in">unescape</span>(<span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>).<span class="title function_">substring</span>(<span class="number">1</span>, <span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="property">length</span>).<span class="title function_">split</span>(<span class="string">&quot;&amp;&quot;</span>), i = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">while</span> (i &lt; arrSource.<span class="property">length</span> &amp;&amp; !isFound) arrSource[i].<span class="title function_">indexOf</span>(<span class="string">&quot;=&quot;</span>) &gt; <span class="number">0</span> &amp;&amp; arrSource[i].<span class="title function_">split</span>(<span class="string">&quot;=&quot;</span>)[<span class="number">0</span>].<span class="title function_">toLowerCase</span>() == paramName.<span class="title function_">toLowerCase</span>() &amp;&amp; (paramValue = arrSource[i].<span class="title function_">split</span>(<span class="string">&quot;=&quot;</span>)[<span class="number">1</span>], isFound = !<span class="number">0</span>), i++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> paramValue == <span class="string">&quot;&quot;</span> &amp;&amp; (paramValue = <span class="literal">null</span>), paramValue;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>那么通过<code>http://x.x.x.x/?id=xxx.mp4</code>就可以直接用JW
-Player播放目标视频了。效果如下：</p>
-<img data-src="/2019/03/05/%E5%9F%BA%E4%BA%8ENginx%E9%85%8D%E7%BD%AEWeb%E8%A7%86%E9%A2%91%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8/result.jpg" class="" title="result">
-<h3 id="生成二维码">生成二维码</h3>
-<p>最后也是最简单的一步，我直接使用了Chrome的插件 "Quick QR Code
-Generator!"，打开目标页面，即可直接生成二维码。</p>
-<h3 id="结果">结果</h3>
-<p>一开始在校园网测试发现还是有卡顿，但室友用4G表示非常流畅……所以还是校园网太垃圾了。室友很满意，承诺要请我吃饭😀</p>
-<h3 id="references">References</h3>
-<h4 id="核心部分">核心部分</h4>
-<p>利用该文安装了支持mp4的Nginx:</p>
-<p><a
-href="https://www.cnblogs.com/czrwxw/p/3790966.html?utm_source=tuicool&amp;utm_medium=referral">nginx搭建flv、mp4流媒体服务</a></p>
-<p>利用这两篇文章完成了Nginx配置和JW Player的使用:</p>
-<p><a
-href="https://blog.51cto.com/5iqiong/1132639">利用nginx搭建http和rtmp协议的流媒体服务器</a>
-<a
-href="https://www.cnblogs.com/wanghetao/p/3418744.html">Nginx搭建flv视频点播服务器</a>
-（以前文为基础）</p>
-<h4 id="nginx">Nginx</h4>
-<p><a
-href="https://blog.csdn.net/u010889616/article/details/82870076">Ubuntu18.04安装Nginx</a>
-<a
-href="https://www.cnblogs.com/codingcloud/p/5095066.html">Nginx的启动、停止与重启</a>
-<a href="https://www.cnblogs.com/cmfwm/p/7659179.html">Nginx Open File
-Cache</a></p>
-<h4 id="视频流">视频流</h4>
-<p><a
-href="https://blog.csdn.net/heng615975867/article/details/80519274">Linux
-nginx+rtmp服务器配置实现直播点播</a>
-（应该是最成熟的方案，但我最终没有使用rtmp） <a
-href="https://www.jianshu.com/p/32417d8ee5b6">理解RTMP、HttpFlv和HLS的正确姿势</a></p>
-<h4 id="页面实现">页面实现</h4>
-<p><a
-href="http://www.php.cn/php-weizijiaocheng-392555.html">PHP如何与js交互数据</a>
-（但没有用到） <a
-href="https://blog.csdn.net/coloriy/article/details/47394771">开源网页播放器JWplayer使用</a>
-<a
-href="https://www.cnblogs.com/karila/p/5991340.html">js获取url传递参数，js获取url？号后面的参数</a>
-<a
-href="https://www.cnblogs.com/godtrue/p/5843093.html">JS-获取URL请求参数</a></p>
-]]></content>
-      <categories>
-        <category>web</category>
-      </categories>
-      <tags>
-        <tag>视频</tag>
-        <tag>流媒体</tag>
-        <tag>nginx</tag>
-        <tag>linux</tag>
-        <tag>服务器</tag>
-        <tag>web</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>哈希表碰撞（溢出）概率计算</title>
-    <url>/2021/03/09/%E5%93%88%E5%B8%8C%E8%A1%A8%E7%A2%B0%E6%92%9E%E6%A6%82%E7%8E%87%E8%AE%A1%E7%AE%97/</url>
+    <url>/2021/03/09/455756102287/</url>
     <content><![CDATA[<p>这篇文章简单谈谈目前业界使用的密码学库中，是如何计算哈希表（Hash
 table）的桶（bin）碰撞（溢出）概率的。</p>
 <p>昨天遇到这样一个问题：在GitHub中，<a
@@ -2841,7 +2736,7 @@ notes我是扔下了。想到这里，多少有点惋惜。只能安慰自己，
   </entry>
   <entry>
     <title>奇怪的修乐器经历</title>
-    <url>/2021/04/19/%E5%A5%87%E6%80%AA%E7%9A%84%E4%BF%AE%E4%B9%90%E5%99%A8%E7%BB%8F%E5%8E%86/</url>
+    <url>/2021/04/19/96b30f05d422/</url>
     <content><![CDATA[<p>从小我就深受姥爷影响，什么东西坏了都喜欢试着自己修，也常常能修好。小学好像修过小饭桌的椅子，初中时修的最多的是改正带，当时技术娴熟到时不时帮同学修。修过的钢笔、中性笔等等更是数不胜数。高中之后生活逐渐粗糙，修东西的频率越来越低，但没想到在乐队里，还得时不时修修乐器。</p>
 <p>恰好今天修了个奇怪的问题，就简单写写近一年来的修乐器经历，都挺奇怪的。</p>
 <span id="more"></span>
@@ -2871,8 +2766,113 @@ href="https://youtu.be/q2OJ8eTCPZ4">此视频</a>），常常缺乏存在感，�
       </tags>
   </entry>
   <entry>
+    <title>基于Nginx配置Web视频流媒体服务器</title>
+    <url>/2019/03/05/15bef8e28185/</url>
+    <content><![CDATA[<p>本来在一心折腾基于Hexo的自建博客，恰好室友提出这样一个需求：在自己的作品集里放一个二维码，扫一下就可以转到一个网页播放自己的视频，但是又要求不能有广告，因此商业性质的视频网站都不能使用。手头刚好有一个AWS的服务器，于是决心尝试一下这类还没碰过的技术。</p>
+<p>Web视频流媒体服务器主要应该满足以下几个功能：</p>
+<ol type="1">
+<li>提供http服务</li>
+<li>具备传输视频流的能力</li>
+<li>可以在浏览器中播放视频</li>
+</ol>
+<span id="more"></span>
+<p>一般来说，会将视频传输和视频播放<a
+href="https://stackoverflow.com/questions/39407346/video-on-demand-websites-server-setup">放置在两个服务器上</a>，因为视频的解码、传输本身就要消耗大量资源。但现在资源有限，因此先拿一个服务器将就一下。</p>
+<h3 id="技术选型">技术选型</h3>
+<p>查阅资料发现，Nginx本身就提供了视频流传输和播放功能，对于mp4格式，只需要借用现成插件即可。</p>
+<ul>
+<li>Nginx: nginx-1.15.9</li>
+<li>mp4: nginx_mod_h264_streaming-2.2.7</li>
+</ul>
+<p>另外，在尝试使用Nginx自带播放器播放，发现加载速度极慢难以忍受后，选择使用JW
+Player</p>
+<ul>
+<li>播放器: <a href="https://www.jwplayer.com/">JW Player</a></li>
+</ul>
+<h3 id="安装nginx">安装nginx</h3>
+<p>需要手动编译，以包含一些需要的附加功能（如mp4等）</p>
+<p>nginx_mod_h264_streaming的下载地址:
+http://h264.code-shop.com/trac/wiki/Mod-H264-Streaming-Nginx-Version2</p>
+<p>nginx-rtmp-module下载地址:
+https://github.com/arut/nginx-rtmp-module</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">$ sudo apt update</span><br><span class="line">$ sudo apt install libpcre3 libpcre3-dev     <span class="comment"># nginx需要</span></span><br><span class="line">$ sudo apt install libssl-dev</span><br><span class="line">$ sudo apt-get install zlib1g-dev</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 nginx</span></span><br><span class="line">$ wget http://nginx.org/download/nginx-1.15.9.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 h264 mod</span></span><br><span class="line">$ wget http://h264.code-shop.com/download/ngi7.tar.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># 下载 rtmp</span></span><br><span class="line">$ git <span class="built_in">clone</span> https://github.com/arut/nginx-rtmp-module</span><br><span class="line"></span><br><span class="line">$ tar -zxvf nginx-1.15.9.tar.gz</span><br><span class="line">$ tar -zxvf nginx_mod_h264_streaming-2.2.7.tar.gz</span><br><span class="line"></span><br><span class="line">$ <span class="built_in">cd</span> nginx-1.15.9/</span><br><span class="line">$ ./configure --prefix=/usr/local/nginx --add-module=../nginx_mod_h264_streaming-2.2.7 \</span><br><span class="line"> --add-module=../nginx-rtmp-module --with-http_flv_module --with-http_mp4_module \</span><br><span class="line"> --with-http_gzip_static_module --with-http_stub_status_module</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>此时如果执行<code>make</code>会报错：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">In file included from ../nginx_mod_h264_streaming-2.2.7/src/ngx_http_h:</span><br><span class="line">../nginx_mod_h264_streaming-2.2.7/src/ngx_http_streaming_module.c: In ndler’:</span><br><span class="line">../nginx_mod_h264_streaming-2.2.7/src/ngx_http_streaming_module.c:158:st_t &#123;aka struct ngx_http_request_s&#125;’ has no member named ‘zero_in_uriri’?</span><br><span class="line">   <span class="keyword">if</span> (r-&gt;zero_in_uri)</span><br><span class="line">          ^~~~~~~~~~~</span><br><span class="line">          plus_in_uri</span><br><span class="line">objs/Makefile:1262: recipe <span class="keyword">for</span> target <span class="string">&#x27;objs/addon/src/ngx_http_h264_st</span></span><br><span class="line"><span class="string">make[1]: *** [objs/addon/src/ngx_http_h264_streaming_module.o] Error 1</span></span><br><span class="line"><span class="string">make[1]: Leaving directory &#x27;</span>/home/username/downloads/nginx-1.15.9<span class="string">&#x27;</span></span><br><span class="line"><span class="string">Makefile:11: recipe for target &#x27;</span>install<span class="string">&#x27; failed</span></span><br><span class="line"><span class="string">make: *** [install] Error 2</span></span><br><span class="line"><span class="string"></span></span><br></pre></td></tr></table></figure>
+<p>编辑<code>objs/Makefile</code>，去掉编译选项的<code>-Werror</code></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">$ sudo make install</span><br><span class="line">$ sudo ln -s /usr/local/nginx/sbin/nginx /usr/bin/nginx</span><br><span class="line">$ sudo nginx</span><br></pre></td></tr></table></figure>
+<p>此时通过浏览器访问服务器，若看到默认欢迎页面，说明nginx安装成功。</p>
+<h3 id="配置nginx">配置nginx</h3>
+<p>在若干次尝试中借鉴了多篇文章，最终的配置如下：</p>
+<figure class="highlight plaintext"><figcaption><span>/usr/local/nginx/conf/nginx.conf</span></figcaption><table><tr><td class="code"><pre><span class="line">#user  nobody;</span><br><span class="line">worker_processes  4;</span><br><span class="line"></span><br><span class="line">error_log  logs/error.log;</span><br><span class="line">#error_log  logs/error.log  notice;</span><br><span class="line">#error_log  logs/error.log  info;</span><br><span class="line"></span><br><span class="line">pid        logs/nginx.pid;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">events &#123;</span><br><span class="line">    use epoll;</span><br><span class="line">    worker_connections  65535;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">rtmp &#123;</span><br><span class="line">    server &#123;</span><br><span class="line">        listen 1935;</span><br><span class="line">        application vod &#123;</span><br><span class="line">            play /home/username/web_service/rtmp;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">http &#123;</span><br><span class="line">    include       mime.types;</span><br><span class="line">    default_type  application/octet-stream;</span><br><span class="line"></span><br><span class="line">    sendfile        on;</span><br><span class="line">    #tcp_nopush     on;</span><br><span class="line"></span><br><span class="line">    #keepalive_timeout  0;</span><br><span class="line">    keepalive_timeout  65;</span><br><span class="line">    server_names_hash_bucket_size 128;</span><br><span class="line">    client_header_buffer_size 32k;</span><br><span class="line">    large_client_header_buffers 4 32k;</span><br><span class="line"></span><br><span class="line">    gzip  on;</span><br><span class="line">    gzip_min_length 1k;</span><br><span class="line">    gzip_buffers 4 16k;</span><br><span class="line">    gzip_comp_level 2;</span><br><span class="line">    gzip_types text/plain application/x-javascript text/css application/xml;</span><br><span class="line">    gzip_vary on;</span><br><span class="line"></span><br><span class="line">    output_buffers 1 32k;</span><br><span class="line">    postpone_output 1460;</span><br><span class="line">    client_header_timeout 3m;</span><br><span class="line">    client_body_timeout 3m;</span><br><span class="line">    send_timeout 3m;</span><br><span class="line">    tcp_nopush on;</span><br><span class="line">    tcp_nodelay on;</span><br><span class="line"></span><br><span class="line">    open_file_cache max=64 inactive=30d;</span><br><span class="line">    open_file_cache_min_uses 1;</span><br><span class="line">    open_file_cache_valid 3m;</span><br><span class="line"></span><br><span class="line">    server &#123;</span><br><span class="line">        listen       8081;</span><br><span class="line">        server_name  x.x.x.x;</span><br><span class="line"></span><br><span class="line">        charset utf-8;</span><br><span class="line"></span><br><span class="line">        location ~ \.mp4$ &#123;</span><br><span class="line">            root   /home/username/web_service/mp4/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        location ~ \.m4v$ &#123;</span><br><span class="line">            root   /home/username/web_service/m4v/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location ~ \.flv$ &#123;</span><br><span class="line">            root   /home/username/web_service/flv/;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location /stat &#123;</span><br><span class="line">            rtmp_stat all;</span><br><span class="line">            rtmp_stat_stylesheet stat.xsl;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        location /stat.xsl</span><br><span class="line">            root /home/username/downloads/nginx-rtmp-module;</span><br><span class="line">        &#125;</span><br><span class="line">        #error_page  404              /404.html;</span><br><span class="line"></span><br><span class="line">        # redirect server error pages to the static page /50x.html</span><br><span class="line">        #</span><br><span class="line">        error_page   500 502 503 504  /50x.html;</span><br><span class="line">        location = /50x.html &#123;</span><br><span class="line">            root   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    server &#123;</span><br><span class="line">        listen       80;</span><br><span class="line">        server_name  x.x.x.x;</span><br><span class="line"></span><br><span class="line">        charset utf-8;</span><br><span class="line"></span><br><span class="line">        location / &#123;</span><br><span class="line">            root   /home/username/web_service/html/;</span><br><span class="line">            index  index.html index.htm;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        # redirect server error pages to the static page /50x.html</span><br><span class="line">        error_page   500 502 503 504  /50x.html;</span><br><span class="line">        location = /50x.html &#123;</span><br><span class="line">            root   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>主要思路是，在8081端口提供视频文件的HTTP服务，在80端口提供视频播放的页面以供访问。</p>
+<p>本来试图通过rtmp推流，但不知道为什么，ffmpeg可以正常读取原视频，写流时也未报错，但无法正常推流，最终作罢。</p>
+<p>通过这样的设置，重启nginx：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo nginx -s reload</span><br></pre></td></tr></table></figure>
+<p>访问<code>http://x.x.x.x:8081/xxx.mp4</code>即可播放mp4格式的视频。但由于使用了nginx自带的播放器，所以卡顿非常明显，体验不好，考虑使用专用播放器。</p>
+<h3 id="播放">播放</h3>
+<p>播放器选择了JW
+Player，似乎以前是开源的，但现在变为免费试用六个月。只需要在官网注册，即可获得专用代码，复制到html中即可。</p>
+<p>编辑<code>/home/username/web_service/html/index.html</code>如下</p>
+<figure class="highlight html"><figcaption><span>index.html</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">heml</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- 在这里替换自己的JW Player id --&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span> <span class="attr">src</span>=<span class="string">&quot;https://cdn.jwplayer.com/libraries/xxxx.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span> <span class="attr">src</span>=<span class="string">&quot;getParam.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">&quot;Content-Type&quot;</span> <span class="attr">content</span>=<span class="string">&quot;text/html;charset=utf-8&quot;</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">body</span> <span class="attr">bgcolor</span>=<span class="string">&quot;#000000&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;myElement&quot;</span>&gt;</span>Loading the page...<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">script</span> <span class="attr">type</span>=<span class="string">&quot;text/javascript&quot;</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            <span class="keyword">var</span> file_name=<span class="title function_">getParam</span>(<span class="string">&#x27;id&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">            <span class="variable language_">console</span>.<span class="title function_">log</span>(file_name);</span></span><br><span class="line"><span class="language-javascript">            <span class="title function_">jwplayer</span>(<span class="string">&quot;myElement&quot;</span>).<span class="title function_">setup</span>(&#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="attr">file</span>: <span class="string">&quot;http://x.x.x.x:8081/&quot;</span> + file_name,</span></span><br><span class="line"><span class="language-javascript">                <span class="comment">// image: &quot;data/myposter.jpg&quot;,</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">title</span>: file_name,</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript">        </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>方便起见，编写了一个js函数用来获取GET请求参数，从而指定播放文件</p>
+<figure class="highlight js"><figcaption><span>getParam.js</span></figcaption><table><tr><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">getParam</span>(<span class="params">paramName</span>) &#123;</span><br><span class="line">    paramValue = <span class="string">&quot;&quot;</span>, isFound = !<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="title function_">indexOf</span>(<span class="string">&quot;?&quot;</span>) == <span class="number">0</span> &amp;&amp; <span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="title function_">indexOf</span>(<span class="string">&quot;=&quot;</span>) &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        arrSource = <span class="built_in">unescape</span>(<span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>).<span class="title function_">substring</span>(<span class="number">1</span>, <span class="variable language_">this</span>.<span class="property">location</span>.<span class="property">search</span>.<span class="property">length</span>).<span class="title function_">split</span>(<span class="string">&quot;&amp;&quot;</span>), i = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">while</span> (i &lt; arrSource.<span class="property">length</span> &amp;&amp; !isFound) arrSource[i].<span class="title function_">indexOf</span>(<span class="string">&quot;=&quot;</span>) &gt; <span class="number">0</span> &amp;&amp; arrSource[i].<span class="title function_">split</span>(<span class="string">&quot;=&quot;</span>)[<span class="number">0</span>].<span class="title function_">toLowerCase</span>() == paramName.<span class="title function_">toLowerCase</span>() &amp;&amp; (paramValue = arrSource[i].<span class="title function_">split</span>(<span class="string">&quot;=&quot;</span>)[<span class="number">1</span>], isFound = !<span class="number">0</span>), i++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> paramValue == <span class="string">&quot;&quot;</span> &amp;&amp; (paramValue = <span class="literal">null</span>), paramValue;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么通过<code>http://x.x.x.x/?id=xxx.mp4</code>就可以直接用JW
+Player播放目标视频了。效果如下：</p>
+<img data-src="/2019/03/05/15bef8e28185/result.jpg" class="" title="result">
+<h3 id="生成二维码">生成二维码</h3>
+<p>最后也是最简单的一步，我直接使用了Chrome的插件 "Quick QR Code
+Generator!"，打开目标页面，即可直接生成二维码。</p>
+<h3 id="结果">结果</h3>
+<p>一开始在校园网测试发现还是有卡顿，但室友用4G表示非常流畅……所以还是校园网太垃圾了。室友很满意，承诺要请我吃饭😀</p>
+<h3 id="references">References</h3>
+<h4 id="核心部分">核心部分</h4>
+<p>利用该文安装了支持mp4的Nginx:</p>
+<p><a
+href="https://www.cnblogs.com/czrwxw/p/3790966.html?utm_source=tuicool&amp;utm_medium=referral">nginx搭建flv、mp4流媒体服务</a></p>
+<p>利用这两篇文章完成了Nginx配置和JW Player的使用:</p>
+<p><a
+href="https://blog.51cto.com/5iqiong/1132639">利用nginx搭建http和rtmp协议的流媒体服务器</a>
+<a
+href="https://www.cnblogs.com/wanghetao/p/3418744.html">Nginx搭建flv视频点播服务器</a>
+（以前文为基础）</p>
+<h4 id="nginx">Nginx</h4>
+<p><a
+href="https://blog.csdn.net/u010889616/article/details/82870076">Ubuntu18.04安装Nginx</a>
+<a
+href="https://www.cnblogs.com/codingcloud/p/5095066.html">Nginx的启动、停止与重启</a>
+<a href="https://www.cnblogs.com/cmfwm/p/7659179.html">Nginx Open File
+Cache</a></p>
+<h4 id="视频流">视频流</h4>
+<p><a
+href="https://blog.csdn.net/heng615975867/article/details/80519274">Linux
+nginx+rtmp服务器配置实现直播点播</a>
+（应该是最成熟的方案，但我最终没有使用rtmp） <a
+href="https://www.jianshu.com/p/32417d8ee5b6">理解RTMP、HttpFlv和HLS的正确姿势</a></p>
+<h4 id="页面实现">页面实现</h4>
+<p><a
+href="http://www.php.cn/php-weizijiaocheng-392555.html">PHP如何与js交互数据</a>
+（但没有用到） <a
+href="https://blog.csdn.net/coloriy/article/details/47394771">开源网页播放器JWplayer使用</a>
+<a
+href="https://www.cnblogs.com/karila/p/5991340.html">js获取url传递参数，js获取url？号后面的参数</a>
+<a
+href="https://www.cnblogs.com/godtrue/p/5843093.html">JS-获取URL请求参数</a></p>
+]]></content>
+      <categories>
+        <category>web</category>
+      </categories>
+      <tags>
+        <tag>视频</tag>
+        <tag>流媒体</tag>
+        <tag>nginx</tag>
+        <tag>linux</tag>
+        <tag>服务器</tag>
+        <tag>web</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Linux安装gmpy2</title>
-    <url>/2021/03/11/%E5%AE%89%E8%A3%85gmpy2/</url>
+    <url>/2021/03/11/0b1512bd69cf/</url>
     <content><![CDATA[<p>今天下午花了点时间配环境，主要困难是安装Python的gmpy2包。这是一个多精度浮点数快速计算库，因为依赖很多，所以在Linux上源码编译安装比较麻烦，而在Windows上则比较简单，直接下载预编译的wheel即可。本文参考了一篇<a
 href="https://www.cnblogs.com/pcat/p/5746821.html">网络文章</a>，一些细节有所不同。</p>
 <p>本文基于的环境是64位的Ubuntu 20.04
@@ -2937,16 +2937,16 @@ platform!</a></p>
   </entry>
   <entry>
     <title>法语基本读音规则表</title>
-    <url>/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/</url>
+    <url>/2019/03/19/c15360aecbf8/</url>
     <content><![CDATA[<p>主体基于清华大学单飞老师课件，添加了少量未收录的辅音字母。</p>
 <span id="more"></span>
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_1.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_2.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_3.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_4.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_5.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_6.png" class="">
-<img data-src="/2019/03/19/%E6%B3%95%E8%AF%AD%E5%9F%BA%E6%9C%AC%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99%E8%A1%A8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_7.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_1.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_2.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_3.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_4.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_5.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_6.png" class="">
+<img data-src="/2019/03/19/c15360aecbf8/%E6%B3%95%E8%AF%AD%E8%AF%BB%E9%9F%B3%E8%A7%84%E5%88%99_%E9%A1%B5%E9%9D%A2_7.png" class="">
 ]]></content>
       <categories>
         <category>外语</category>
@@ -2958,134 +2958,18 @@ platform!</a></p>
   </entry>
   <entry>
     <title>第一篇blog</title>
-    <url>/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/</url>
+    <url>/2019/03/03/06e225470e70/</url>
     <content><![CDATA[<h2 id="这是我的第一篇blog">这是我的第一篇blog</h2>
 <p>测试图片插入</p>
-<img data-src="/2019/03/03/%E7%AC%AC%E4%B8%80%E7%AF%87blog/test.jpg" class="" title="测试">
+<img data-src="/2019/03/03/06e225470e70/test.jpg" class="" title="测试">
 ]]></content>
       <categories>
         <category>其他</category>
       </categories>
   </entry>
   <entry>
-    <title>面试中的C++问题（2）</title>
-    <url>/2021/09/05/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%882%EF%BC%89/</url>
-    <content><![CDATA[<p>继续这个系列。本篇的问题可能比上一篇稍复杂一些。</p>
-<span id="more"></span>
-<h3 id="三种智能指针">三种智能指针</h3>
-<p>C++
-11之后建议使用三种智能指针。需要包含<code>&lt;memory&gt;</code>头文件。请区分对象的“生命周期拥有权”和“观测权”。</p>
-<blockquote>
-<p><code>auto_ptr</code>已经被淘汰，不建议使用。</p>
-</blockquote>
-<h4 id="unique_ptr"><code>unique_ptr</code></h4>
-<p>独占对象的生命周期拥有权，当然也包括观测权。它指向的对象不能复制、值传递，不能用于基于值传递的STL库。只能移动，之后原始的<code>unique_ptr</code>变成空指针。</p>
-<p><strong>注意</strong>：如果<code>unique_ptr</code>是临时右值，则允许拷贝。</p>
-<p>可以用<code>reset()</code>、<code>release()</code>，也可以直接重新赋值。</p>
-<p><code>unique_ptr</code>生命周期结束时，自动析构其指向的资源。</p>
-<h4 id="shared_ptr"><code>shared_ptr</code></h4>
-<p>可以共享对象的生命周期拥有权（包括观测权）。底层原理是引用计数，因此除了对象本身，还需要分配一块内存用于记录引用计数，所有<code>shared_ptr</code>共享该计数区域，每多一个<code>shared_ptr</code>，引用+1.
-每个<code>shared_ptr</code>结束生命周期时，引用-1.
-当引用归零时，自动析构其指向的资源。</p>
-<p><strong>注意</strong>：在涉及循环引用时，可能出现问题，如（例子来自<a
-href="https://www.cnblogs.com/KillerAery/p/9096558.html">KillerAery -
-C++11智能指针的深度理解</a>）：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Monster</span> &#123;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_father;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_son;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setFather</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; father)</span></span>;<span class="comment">//实现细节懒得写了</span></span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setSon</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; son)</span></span>;　　　 <span class="comment">//懒</span></span><br><span class="line">　　~<span class="built_in">Monster</span>() &#123;std::cout &lt;&lt; <span class="string">&quot;A monster die!&quot;</span>;&#125;　　　　<span class="comment">//析构时发出死亡的悲鸣</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">runGame</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; father = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; son = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    father-&gt;<span class="built_in">setSon</span>(son);</span><br><span class="line">    son-&gt;<span class="built_in">setFather</span>(father);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>那么在<code>runGame()</code>结束时，父子指针都无法正常析构。为了解决这一问题，需要使用<code>weak_ptr</code>。</p>
-<h4 id="weak_ptr"><code>weak_ptr</code></h4>
-<p><code>shared_ptr</code>代表强引用，即生命周期拥有权；而<code>weak_ptr</code>代表弱引用，即只拥有观测权。<code>weak_ptr</code>不应该单独使用，应该仅作为<code>shared_ptr</code>的辅助。</p>
-<p>引入<code>weak_ptr</code>后，计数区域需要区分两种引用计数：强引用计数和弱引用计数。当强引用计数归零时，析构指向的对象；当弱引用计数和强引用计数都归零时，才能释放该计数区域。</p>
-<p>在定义拥有对象生命周期控制权的指针时，使用<strong>一次</strong><code>shared_ptr</code>以拥有该对象（i.e.
-当该指针的生命周期结束时，该对象予以析构，其他任何地方都不应该再使用该对象）。<strong>其他任何</strong>要引用该对象的地方，都应该使用<code>weak_ptr</code>。</p>
-<p><strong>注意</strong>：</p>
-<ol type="1">
-<li>如果在<code>weak_ptr</code>未感知的地方<code>shared_ptr</code>生命周期结束，可能导致<code>weak_ptr</code>指针空悬问题。为了解决这一问题，<code>weak_ptr</code>引入<code>expired()</code>成员，可以判断对象是否已释放。</li>
-<li>同样原因，<code>weak_ptr</code>没有重载<code>*</code>和<code>-&gt;</code>，所以称为“观测权”要比“使用权”更好。因此要使用被弱引用的对象，必须先用<code>weak_ptr</code>的<code>lock()</code>获得一个
-<strong><code>shared_ptr</code></strong>，用该<code>shared_ptr</code>使用对象，在使用完成后即使析构该指针（善用作用域）。</li>
-</ol>
-<h3 id="四种显式类型转换">四种显式类型转换</h3>
-<h4 id="static_cast"><code>static_cast</code></h4>
-<p>总体而言用于相关类型间的转换，编译器将尽可能检查类型转换的正确性，并在需要时修改底层二进制表示（如<code>int</code>转成<code>float</code>）。在可能丢失精度时，编译器<strong>不会</strong>提示——如果程序员显示使用了<code>static_cast</code>，则认为你已经预料到了这样的风险。几种常见用法：</p>
-<ol type="1">
-<li>用于内置类型间的转换；</li>
-<li>用于<code>void *</code>和包含类型的指针之间的互相转换；</li>
-<li>有<strong>继承关系</strong>的类型<strong>指针或引用</strong>之间的转换：从子类到父类安全，但从父类到子类不一定安全！如果可能，最好使用<code>dynamic_cast</code>；</li>
-<li>自定义了转换关系的类型<strong>对象</strong>之间的转换。</li>
-</ol>
-<blockquote>
-<p>自定义转换关系： 1）在源类型中定义目标类型的operator；
-2）在目标类型中定义以源类型为唯一参数的构造函数。</p>
-</blockquote>
-<h4 id="reinterpret_cast"><code>reinterpret_cast</code></h4>
-<p>保证底层二进制不变，只是编译器层面上改变了对该二进制的解释类型。</p>
-<p>一般用于<strong>无关类型</strong>的指针间互相转换。也可以用于整数和指针直接的转化，如:</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Device *p = <span class="built_in">reinterpret_cast</span>&lt;Device *&gt;(<span class="number">0xff00</span>);</span><br></pre></td></tr></table></figure>
-<p><strong>注意</strong>：如果转换可能导致精度丢失，则编译器报错。</p>
-<p><code>static_cast</code>和<code>reinterpret_cast</code>的几个例子：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="type">float</span> *p = <span class="keyword">new</span> <span class="type">float</span>;</span><br><span class="line">*p = <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> *ip = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">int</span> *&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%x\n&quot;</span>, *ip);</span><br><span class="line">cout &lt;&lt; ip &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// float *fp = static_cast&lt;float *&gt;(ip);    // forbidden: invalid type</span></span><br><span class="line"><span class="type">void</span> *vp = <span class="built_in">static_cast</span>&lt;<span class="type">void</span> *&gt;(p);</span><br><span class="line"><span class="type">float</span> *fp = <span class="built_in">static_cast</span>&lt;<span class="type">float</span> *&gt;(vp);</span><br><span class="line">cout &lt;&lt; *fp &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> i = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(*p);</span><br><span class="line">cout &lt;&lt; i &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// int what = reinterpret_cast&lt;int&gt;(p);     // on x64 forbidden: loses precision</span></span><br><span class="line"><span class="type">long</span> <span class="type">long</span> what = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">long</span> <span class="type">long</span>&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%llx\n&quot;</span>, what);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> lose = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(<span class="number">1.1f</span>);</span><br><span class="line">cout &lt;&lt; lose &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> losec = <span class="built_in">static_cast</span>&lt;<span class="type">char</span>&gt;(<span class="number">1</span> &lt;&lt; <span class="number">20</span>);</span><br><span class="line">cout &lt;&lt; <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(losec) &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> p;</span><br></pre></td></tr></table></figure>
-<p>其输出为</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">0x40000000</span><br><span class="line">0x562df031eeb0</span><br><span class="line">2</span><br><span class="line">2</span><br><span class="line">0x562df031eeb0</span><br><span class="line">1</span><br><span class="line">0</span><br></pre></td></tr></table></figure>
-<h4 id="dynamic_cast"><code>dynamic_cast</code></h4>
-<p>主要用于有（直接或间接）继承关系的类的指针和引用的转换。<strong>注意</strong>：基类必须定义虚函数！</p>
-<p>几个例子。先定义如下类型：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span> &#123;</span><br><span class="line">    <span class="type">int</span> _a;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">A</span><span class="params">(<span class="type">int</span> a)</span> : _a(a) &#123;</span>&#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_a</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _a; &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">func</span><span class="params">()</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m B!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m D!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Dadd</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line">    <span class="type">int</span> _d;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Dadd</span><span class="params">(<span class="type">int</span> d)</span> : _d(d) &#123;</span> &#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_d</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _d; &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m D(%d)!\n&quot;</span>, _d); &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">myfunc</span><span class="params">()</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m special with %d!\n&quot;</span>, _d); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DA</span>: <span class="keyword">public</span> Dadd, <span class="keyword">public</span> A &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">DA</span>(<span class="type">int</span> d, <span class="type">int</span> a) : <span class="built_in">Dadd</span>(d), <span class="built_in">A</span>(a) &#123;&#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m DA(%d, %d)!\n&quot;</span>, <span class="built_in">get_d</span>(), <span class="built_in">get_a</span>()); &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<p>继承关系：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">A     B</span><br><span class="line">^     ^</span><br><span class="line">|     |------</span><br><span class="line">|     |     |</span><br><span class="line">|     Dadd  D</span><br><span class="line">|     |</span><br><span class="line">-------</span><br><span class="line">   |</span><br><span class="line">   DA</span><br></pre></td></tr></table></figure>
-<h5 id="例1">例1</h5>
-<p>首先是指针间互相转换。同一条继承线上的类型指针可以用<code>static_cast</code>或<code>dynamic_cast</code>随意转换，最终运行时都会根据VTABLE选择<strong>对象</strong>对应的函数。原理是对象就在内存中，且具有确定的类型和确定的VTABLE，指针可以随意类型。</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">D *d = <span class="keyword">new</span> D;</span><br><span class="line">B *sb = <span class="built_in">static_cast</span>&lt;B *&gt;(d);</span><br><span class="line">sb-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">B *db = <span class="built_in">dynamic_cast</span>&lt;B *&gt;(d);</span><br><span class="line">db-&gt;<span class="built_in">func</span>();</span><br><span class="line">D *dd = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(db);</span><br><span class="line">dd-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Dadd *sdadd = static_cast&lt;Dadd *&gt;(d);    // forbidden</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// This is WRONG!</span></span><br><span class="line"><span class="comment">// `sdadd-&gt;myfunc()` may run with output 0 on some platforms,</span></span><br><span class="line"><span class="comment">// and with random output on others.</span></span><br><span class="line">Dadd *sdadd = <span class="built_in">static_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line">sdadd-&gt;<span class="built_in">func</span>();</span><br><span class="line">sdadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line"></span><br><span class="line">DA *sDA = <span class="built_in">static_cast</span>&lt;DA *&gt;(db);</span><br><span class="line">sDA-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">Dadd *ddadd = <span class="built_in">dynamic_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line"><span class="keyword">if</span> (ddadd) &#123;</span><br><span class="line">    ddadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: B* -&gt; Dadd*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> d;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m special with 2123768864!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">failed to convert: B* -&gt; Dadd*</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>注：<code>Dadd *sdadd</code>
-导致的越界访存错误在本文初版中没有提示，详见评论区。</p>
-<p>也可以试试将 <code>_d</code>
-改为一个堆上指针，这种情况下，直接运行可能并不会报错而是输出随机值，但用
-gdb launch 就会 SEGV，有趣的一点是，某些 gdb 实现会给 <code>_d</code>
-这种未初始化的堆指针赋默认值如 <code>0xabababab</code>，因此
-<code>sdadd-&gt;myfunc()</code> 会触发段错误。但本文中放在栈上，即使用
-gdb 也不会段错误。</p>
-</blockquote>
-<h5 id="例2">例2</h5>
-<p>不能直接转化的类型指针之间，也可以调用<code>dynamic_cast</code>，但结果为空指针。</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Dadd *da = <span class="keyword">new</span> <span class="built_in">Dadd</span>(<span class="number">2</span>);</span><br><span class="line">D *dad = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(da);</span><br><span class="line"><span class="keyword">if</span> (dad) &#123;</span><br><span class="line">    dad-&gt;<span class="built_in">func</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd* -&gt; D*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> da;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd* -&gt; D*</span><br></pre></td></tr></table></figure>
-<h5 id="例3">例3</h5>
-<p><code>dynamic_cast</code>还可以用于引用的转换（注意是引用，<strong>不是</strong>对象！），成功与否同样取决于被引用的对象实际的类型。类似的，<code>static_cast</code>也有同样效果。</p>
-<p><strong>注意</strong>：不同于指针转换失败会返回空指针，引用转换失败会抛出<code>std::bad_cast</code>异常。</p>
-<p>另外，<code>static_cast</code>还是可以用于<strong>对象本身</strong>的直接转换——会尝试构造<strong>新对象</strong>！</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    <span class="function">Dadd <span class="title">dar</span><span class="params">(<span class="number">3</span>)</span></span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// D &amp;dadr = static_cast&lt;D &amp;&gt;(dar);     // forbidden</span></span><br><span class="line">        D &amp;dadr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dar);</span><br><span class="line">        dadr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// B &amp;dabr = static_cast&lt;B &amp;&gt;(dar);         // this is also OK!</span></span><br><span class="line">    B &amp;dabr = <span class="built_in">dynamic_cast</span>&lt;B &amp;&gt;(dar);</span><br><span class="line">    dabr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        D &amp;bdr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dabr);</span><br><span class="line">        bdr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: B&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Dadd &amp;bdadr = <span class="built_in">dynamic_cast</span>&lt;Dadd &amp;&gt;(dabr);</span><br><span class="line">    bdadr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// DA what1 = static_cast&lt;DA&gt;(dar);     // no matching function for call to ‘DA::DA(Dadd&amp;)’</span></span><br><span class="line">    B what2 = <span class="built_in">static_cast</span>&lt;B&gt;(dar);</span><br><span class="line">    what2.<span class="built_in">func</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">failed to convert: B&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">I&#x27;m B!</span><br></pre></td></tr></table></figure>
-<h5 id="例4">例4</h5>
-<p><code>dynamic_cast</code>甚至可以实现有共同子类（多根继承）的基类间的转换——这是通过运行时检查VTABLE做到的，也是<code>static_cast</code>在编译时做不到的事！</p>
-<blockquote>
-<p>To be mentioned,
-<code>dynamic_cast</code>的目标类型不一定是多态的，如例子中的<code>class A</code>。</p>
-</blockquote>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    DA *carrier = <span class="keyword">new</span> <span class="built_in">DA</span>(<span class="number">5</span>, <span class="number">6</span>);</span><br><span class="line"></span><br><span class="line">    B *cb = <span class="built_in">static_cast</span>&lt;B *&gt;(carrier);</span><br><span class="line">    <span class="comment">// A *cas = static_cast&lt;A *&gt;(cb);       // forbidden</span></span><br><span class="line">    A *cad = <span class="built_in">dynamic_cast</span>&lt;A *&gt;(cb);</span><br><span class="line">    cout &lt;&lt; cad-&gt;<span class="built_in">get_a</span>() &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">delete</span> carrier;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>输出为：</p>
-<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">6</span><br></pre></td></tr></table></figure>
-<h4 id="const_cast"><code>const_cast</code></h4>
-<p>用于去除<code>const</code>限定符。</p>
-<blockquote>
-<p>如果要修改<code>const</code>变量的某个部分，强制转换不一定是最好的方案。可以考虑使用<code>mutable</code>将可变的部分定义为“一定不是常量”。</p>
-</blockquote>
-]]></content>
-      <categories>
-        <category>编程</category>
-      </categories>
-      <tags>
-        <tag>面试</tag>
-        <tag>C++</tag>
-        <tag>智能指针</tag>
-        <tag>显式类型转换</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>逻辑右移：不同语言与架构对边界条件的处理</title>
-    <url>/2024/12/08/%E9%80%BB%E8%BE%91%E5%8F%B3%E7%A7%BB%EF%BC%9A%E4%B8%8D%E5%90%8C%E8%AF%AD%E8%A8%80%E4%B8%8E%E6%9E%B6%E6%9E%84%E5%AF%B9%E8%BE%B9%E7%95%8C%E6%9D%A1%E4%BB%B6%E7%9A%84%E5%A4%84%E7%90%86/</url>
+    <url>/2024/12/08/fb17626426bb/</url>
     <content><![CDATA[<p>讨论一个问题：一个 32 位的整数，如果逻辑右移 32 位，结果如何？</p>
 <p>先说结论：对于 C++
 是未定义行为，不同架构有不同处理，某些处理从数学角度看可能有问题；对于
@@ -3238,8 +3122,8 @@ class="math inline">\(n\ge 32\)</span>
       </categories>
       <tags>
         <tag>x86</tag>
-        <tag>C++</tag>
         <tag>Arm</tag>
+        <tag>C++</tag>
         <tag>CUDA</tag>
         <tag>PTX</tag>
         <tag>Python</tag>
@@ -3248,7 +3132,7 @@ class="math inline">\(n\ge 32\)</span>
   </entry>
   <entry>
     <title>面试中的C++问题（1）</title>
-    <url>/2021/09/03/%E9%9D%A2%E8%AF%95%E4%B8%AD%E7%9A%84C-%E9%97%AE%E9%A2%98%EF%BC%881%EF%BC%89/</url>
+    <url>/2021/09/03/ca1eaba0158c/</url>
     <content><![CDATA[<p>虽然大部分面试都是问项目，然后一道代码题，但还是有少量公司很喜欢问“基础的”技术问题，比如C++、体系结构之类。因此开个新系列，记录一下面试里遇到的一些技术类问题。有一些很简单，也有一些可能也没那么常见。</p>
 <span id="more"></span>
 <h3 id="explicit"><code>explicit</code></h3>
@@ -3295,9 +3179,125 @@ id="模板函数能否在.cpp里实现编译后成.o后再链接">模板函数�
         <category>编程</category>
       </categories>
       <tags>
-        <tag>面试</tag>
         <tag>C++</tag>
+        <tag>面试</tag>
         <tag>空指针</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>面试中的C++问题（2）</title>
+    <url>/2021/09/05/52035fea2f77/</url>
+    <content><![CDATA[<p>继续这个系列。本篇的问题可能比上一篇稍复杂一些。</p>
+<span id="more"></span>
+<h3 id="三种智能指针">三种智能指针</h3>
+<p>C++
+11之后建议使用三种智能指针。需要包含<code>&lt;memory&gt;</code>头文件。请区分对象的“生命周期拥有权”和“观测权”。</p>
+<blockquote>
+<p><code>auto_ptr</code>已经被淘汰，不建议使用。</p>
+</blockquote>
+<h4 id="unique_ptr"><code>unique_ptr</code></h4>
+<p>独占对象的生命周期拥有权，当然也包括观测权。它指向的对象不能复制、值传递，不能用于基于值传递的STL库。只能移动，之后原始的<code>unique_ptr</code>变成空指针。</p>
+<p><strong>注意</strong>：如果<code>unique_ptr</code>是临时右值，则允许拷贝。</p>
+<p>可以用<code>reset()</code>、<code>release()</code>，也可以直接重新赋值。</p>
+<p><code>unique_ptr</code>生命周期结束时，自动析构其指向的资源。</p>
+<h4 id="shared_ptr"><code>shared_ptr</code></h4>
+<p>可以共享对象的生命周期拥有权（包括观测权）。底层原理是引用计数，因此除了对象本身，还需要分配一块内存用于记录引用计数，所有<code>shared_ptr</code>共享该计数区域，每多一个<code>shared_ptr</code>，引用+1.
+每个<code>shared_ptr</code>结束生命周期时，引用-1.
+当引用归零时，自动析构其指向的资源。</p>
+<p><strong>注意</strong>：在涉及循环引用时，可能出现问题，如（例子来自<a
+href="https://www.cnblogs.com/KillerAery/p/9096558.html">KillerAery -
+C++11智能指针的深度理解</a>）：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Monster</span> &#123;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_father;</span><br><span class="line">　　std::shared_ptr&lt;Monster&gt; m_son;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setFather</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; father)</span></span>;<span class="comment">//实现细节懒得写了</span></span><br><span class="line">　　<span class="function"><span class="type">void</span> <span class="title">setSon</span><span class="params">(std::shared_ptr&lt;Monster&gt;&amp; son)</span></span>;　　　 <span class="comment">//懒</span></span><br><span class="line">　　~<span class="built_in">Monster</span>() &#123;std::cout &lt;&lt; <span class="string">&quot;A monster die!&quot;</span>;&#125;　　　　<span class="comment">//析构时发出死亡的悲鸣</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">runGame</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; father = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    std::shared_ptr&lt;Monster&gt; son = <span class="keyword">new</span> <span class="built_in">Monster</span>();</span><br><span class="line">    father-&gt;<span class="built_in">setSon</span>(son);</span><br><span class="line">    son-&gt;<span class="built_in">setFather</span>(father);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么在<code>runGame()</code>结束时，父子指针都无法正常析构。为了解决这一问题，需要使用<code>weak_ptr</code>。</p>
+<h4 id="weak_ptr"><code>weak_ptr</code></h4>
+<p><code>shared_ptr</code>代表强引用，即生命周期拥有权；而<code>weak_ptr</code>代表弱引用，即只拥有观测权。<code>weak_ptr</code>不应该单独使用，应该仅作为<code>shared_ptr</code>的辅助。</p>
+<p>引入<code>weak_ptr</code>后，计数区域需要区分两种引用计数：强引用计数和弱引用计数。当强引用计数归零时，析构指向的对象；当弱引用计数和强引用计数都归零时，才能释放该计数区域。</p>
+<p>在定义拥有对象生命周期控制权的指针时，使用<strong>一次</strong><code>shared_ptr</code>以拥有该对象（i.e.
+当该指针的生命周期结束时，该对象予以析构，其他任何地方都不应该再使用该对象）。<strong>其他任何</strong>要引用该对象的地方，都应该使用<code>weak_ptr</code>。</p>
+<p><strong>注意</strong>：</p>
+<ol type="1">
+<li>如果在<code>weak_ptr</code>未感知的地方<code>shared_ptr</code>生命周期结束，可能导致<code>weak_ptr</code>指针空悬问题。为了解决这一问题，<code>weak_ptr</code>引入<code>expired()</code>成员，可以判断对象是否已释放。</li>
+<li>同样原因，<code>weak_ptr</code>没有重载<code>*</code>和<code>-&gt;</code>，所以称为“观测权”要比“使用权”更好。因此要使用被弱引用的对象，必须先用<code>weak_ptr</code>的<code>lock()</code>获得一个
+<strong><code>shared_ptr</code></strong>，用该<code>shared_ptr</code>使用对象，在使用完成后即使析构该指针（善用作用域）。</li>
+</ol>
+<h3 id="四种显式类型转换">四种显式类型转换</h3>
+<h4 id="static_cast"><code>static_cast</code></h4>
+<p>总体而言用于相关类型间的转换，编译器将尽可能检查类型转换的正确性，并在需要时修改底层二进制表示（如<code>int</code>转成<code>float</code>）。在可能丢失精度时，编译器<strong>不会</strong>提示——如果程序员显示使用了<code>static_cast</code>，则认为你已经预料到了这样的风险。几种常见用法：</p>
+<ol type="1">
+<li>用于内置类型间的转换；</li>
+<li>用于<code>void *</code>和包含类型的指针之间的互相转换；</li>
+<li>有<strong>继承关系</strong>的类型<strong>指针或引用</strong>之间的转换：从子类到父类安全，但从父类到子类不一定安全！如果可能，最好使用<code>dynamic_cast</code>；</li>
+<li>自定义了转换关系的类型<strong>对象</strong>之间的转换。</li>
+</ol>
+<blockquote>
+<p>自定义转换关系： 1）在源类型中定义目标类型的operator；
+2）在目标类型中定义以源类型为唯一参数的构造函数。</p>
+</blockquote>
+<h4 id="reinterpret_cast"><code>reinterpret_cast</code></h4>
+<p>保证底层二进制不变，只是编译器层面上改变了对该二进制的解释类型。</p>
+<p>一般用于<strong>无关类型</strong>的指针间互相转换。也可以用于整数和指针直接的转化，如:</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Device *p = <span class="built_in">reinterpret_cast</span>&lt;Device *&gt;(<span class="number">0xff00</span>);</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：如果转换可能导致精度丢失，则编译器报错。</p>
+<p><code>static_cast</code>和<code>reinterpret_cast</code>的几个例子：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="type">float</span> *p = <span class="keyword">new</span> <span class="type">float</span>;</span><br><span class="line">*p = <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> *ip = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">int</span> *&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%x\n&quot;</span>, *ip);</span><br><span class="line">cout &lt;&lt; ip &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// float *fp = static_cast&lt;float *&gt;(ip);    // forbidden: invalid type</span></span><br><span class="line"><span class="type">void</span> *vp = <span class="built_in">static_cast</span>&lt;<span class="type">void</span> *&gt;(p);</span><br><span class="line"><span class="type">float</span> *fp = <span class="built_in">static_cast</span>&lt;<span class="type">float</span> *&gt;(vp);</span><br><span class="line">cout &lt;&lt; *fp &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> i = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(*p);</span><br><span class="line">cout &lt;&lt; i &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="comment">// int what = reinterpret_cast&lt;int&gt;(p);     // on x64 forbidden: loses precision</span></span><br><span class="line"><span class="type">long</span> <span class="type">long</span> what = <span class="built_in">reinterpret_cast</span>&lt;<span class="type">long</span> <span class="type">long</span>&gt;(p);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;0x%llx\n&quot;</span>, what);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> lose = <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(<span class="number">1.1f</span>);</span><br><span class="line">cout &lt;&lt; lose &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="type">char</span> losec = <span class="built_in">static_cast</span>&lt;<span class="type">char</span>&gt;(<span class="number">1</span> &lt;&lt; <span class="number">20</span>);</span><br><span class="line">cout &lt;&lt; <span class="built_in">static_cast</span>&lt;<span class="type">int</span>&gt;(losec) &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> p;</span><br></pre></td></tr></table></figure>
+<p>其输出为</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">0x40000000</span><br><span class="line">0x562df031eeb0</span><br><span class="line">2</span><br><span class="line">2</span><br><span class="line">0x562df031eeb0</span><br><span class="line">1</span><br><span class="line">0</span><br></pre></td></tr></table></figure>
+<h4 id="dynamic_cast"><code>dynamic_cast</code></h4>
+<p>主要用于有（直接或间接）继承关系的类的指针和引用的转换。<strong>注意</strong>：基类必须定义虚函数！</p>
+<p>几个例子。先定义如下类型：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span> &#123;</span><br><span class="line">    <span class="type">int</span> _a;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">A</span><span class="params">(<span class="type">int</span> a)</span> : _a(a) &#123;</span>&#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_a</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _a; &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">B</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">func</span><span class="params">()</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m B!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">D</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">puts</span>(<span class="string">&quot;I&#x27;m D!&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Dadd</span>: <span class="keyword">public</span> B &#123;</span><br><span class="line">    <span class="type">int</span> _d;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Dadd</span><span class="params">(<span class="type">int</span> d)</span> : _d(d) &#123;</span> &#125;</span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get_d</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> _d; &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m D(%d)!\n&quot;</span>, _d); &#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">myfunc</span><span class="params">()</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m special with %d!\n&quot;</span>, _d); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DA</span>: <span class="keyword">public</span> Dadd, <span class="keyword">public</span> A &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">DA</span>(<span class="type">int</span> d, <span class="type">int</span> a) : <span class="built_in">Dadd</span>(d), <span class="built_in">A</span>(a) &#123;&#125;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">func</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;I&#x27;m DA(%d, %d)!\n&quot;</span>, <span class="built_in">get_d</span>(), <span class="built_in">get_a</span>()); &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>继承关系：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">A     B</span><br><span class="line">^     ^</span><br><span class="line">|     |------</span><br><span class="line">|     |     |</span><br><span class="line">|     Dadd  D</span><br><span class="line">|     |</span><br><span class="line">-------</span><br><span class="line">   |</span><br><span class="line">   DA</span><br></pre></td></tr></table></figure>
+<h5 id="例1">例1</h5>
+<p>首先是指针间互相转换。同一条继承线上的类型指针可以用<code>static_cast</code>或<code>dynamic_cast</code>随意转换，最终运行时都会根据VTABLE选择<strong>对象</strong>对应的函数。原理是对象就在内存中，且具有确定的类型和确定的VTABLE，指针可以随意类型。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">D *d = <span class="keyword">new</span> D;</span><br><span class="line">B *sb = <span class="built_in">static_cast</span>&lt;B *&gt;(d);</span><br><span class="line">sb-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">B *db = <span class="built_in">dynamic_cast</span>&lt;B *&gt;(d);</span><br><span class="line">db-&gt;<span class="built_in">func</span>();</span><br><span class="line">D *dd = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(db);</span><br><span class="line">dd-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Dadd *sdadd = static_cast&lt;Dadd *&gt;(d);    // forbidden</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// This is WRONG!</span></span><br><span class="line"><span class="comment">// `sdadd-&gt;myfunc()` may run with output 0 on some platforms,</span></span><br><span class="line"><span class="comment">// and with random output on others.</span></span><br><span class="line">Dadd *sdadd = <span class="built_in">static_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line">sdadd-&gt;<span class="built_in">func</span>();</span><br><span class="line">sdadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line"></span><br><span class="line">DA *sDA = <span class="built_in">static_cast</span>&lt;DA *&gt;(db);</span><br><span class="line">sDA-&gt;<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">Dadd *ddadd = <span class="built_in">dynamic_cast</span>&lt;Dadd *&gt;(db);</span><br><span class="line"><span class="keyword">if</span> (ddadd) &#123;</span><br><span class="line">    ddadd-&gt;<span class="built_in">myfunc</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: B* -&gt; Dadd*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> d;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">I&#x27;m special with 2123768864!</span><br><span class="line">I&#x27;m D!</span><br><span class="line">failed to convert: B* -&gt; Dadd*</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>注：<code>Dadd *sdadd</code>
+导致的越界访存错误在本文初版中没有提示，详见评论区。</p>
+<p>也可以试试将 <code>_d</code>
+改为一个堆上指针，这种情况下，直接运行可能并不会报错而是输出随机值，但用
+gdb launch 就会 SEGV，有趣的一点是，某些 gdb 实现会给 <code>_d</code>
+这种未初始化的堆指针赋默认值如 <code>0xabababab</code>，因此
+<code>sdadd-&gt;myfunc()</code> 会触发段错误。但本文中放在栈上，即使用
+gdb 也不会段错误。</p>
+</blockquote>
+<h5 id="例2">例2</h5>
+<p>不能直接转化的类型指针之间，也可以调用<code>dynamic_cast</code>，但结果为空指针。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">Dadd *da = <span class="keyword">new</span> <span class="built_in">Dadd</span>(<span class="number">2</span>);</span><br><span class="line">D *dad = <span class="built_in">dynamic_cast</span>&lt;D *&gt;(da);</span><br><span class="line"><span class="keyword">if</span> (dad) &#123;</span><br><span class="line">    dad-&gt;<span class="built_in">func</span>();</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd* -&gt; D*&quot;</span> &lt;&lt; endl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">delete</span> da;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd* -&gt; D*</span><br></pre></td></tr></table></figure>
+<h5 id="例3">例3</h5>
+<p><code>dynamic_cast</code>还可以用于引用的转换（注意是引用，<strong>不是</strong>对象！），成功与否同样取决于被引用的对象实际的类型。类似的，<code>static_cast</code>也有同样效果。</p>
+<p><strong>注意</strong>：不同于指针转换失败会返回空指针，引用转换失败会抛出<code>std::bad_cast</code>异常。</p>
+<p>另外，<code>static_cast</code>还是可以用于<strong>对象本身</strong>的直接转换——会尝试构造<strong>新对象</strong>！</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    <span class="function">Dadd <span class="title">dar</span><span class="params">(<span class="number">3</span>)</span></span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// D &amp;dadr = static_cast&lt;D &amp;&gt;(dar);     // forbidden</span></span><br><span class="line">        D &amp;dadr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dar);</span><br><span class="line">        dadr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: Dadd&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// B &amp;dabr = static_cast&lt;B &amp;&gt;(dar);         // this is also OK!</span></span><br><span class="line">    B &amp;dabr = <span class="built_in">dynamic_cast</span>&lt;B &amp;&gt;(dar);</span><br><span class="line">    dabr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        D &amp;bdr = <span class="built_in">dynamic_cast</span>&lt;D &amp;&gt;(dabr);</span><br><span class="line">        bdr.<span class="built_in">func</span>();</span><br><span class="line">    &#125; <span class="built_in">catch</span>(<span class="type">const</span> bad_cast&amp; e) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;failed to convert: B&amp; -&gt; D&amp;&quot;</span> &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Dadd &amp;bdadr = <span class="built_in">dynamic_cast</span>&lt;Dadd &amp;&gt;(dabr);</span><br><span class="line">    bdadr.<span class="built_in">func</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// DA what1 = static_cast&lt;DA&gt;(dar);     // no matching function for call to ‘DA::DA(Dadd&amp;)’</span></span><br><span class="line">    B what2 = <span class="built_in">static_cast</span>&lt;B&gt;(dar);</span><br><span class="line">    what2.<span class="built_in">func</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">failed to convert: Dadd&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">failed to convert: B&amp; -&gt; D&amp;</span><br><span class="line">I&#x27;m D(3)!</span><br><span class="line">I&#x27;m B!</span><br></pre></td></tr></table></figure>
+<h5 id="例4">例4</h5>
+<p><code>dynamic_cast</code>甚至可以实现有共同子类（多根继承）的基类间的转换——这是通过运行时检查VTABLE做到的，也是<code>static_cast</code>在编译时做不到的事！</p>
+<blockquote>
+<p>To be mentioned,
+<code>dynamic_cast</code>的目标类型不一定是多态的，如例子中的<code>class A</code>。</p>
+</blockquote>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line">    DA *carrier = <span class="keyword">new</span> <span class="built_in">DA</span>(<span class="number">5</span>, <span class="number">6</span>);</span><br><span class="line"></span><br><span class="line">    B *cb = <span class="built_in">static_cast</span>&lt;B *&gt;(carrier);</span><br><span class="line">    <span class="comment">// A *cas = static_cast&lt;A *&gt;(cb);       // forbidden</span></span><br><span class="line">    A *cad = <span class="built_in">dynamic_cast</span>&lt;A *&gt;(cb);</span><br><span class="line">    cout &lt;&lt; cad-&gt;<span class="built_in">get_a</span>() &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">delete</span> carrier;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出为：</p>
+<figure class="highlight txt"><table><tr><td class="code"><pre><span class="line">6</span><br></pre></td></tr></table></figure>
+<h4 id="const_cast"><code>const_cast</code></h4>
+<p>用于去除<code>const</code>限定符。</p>
+<blockquote>
+<p>如果要修改<code>const</code>变量的某个部分，强制转换不一定是最好的方案。可以考虑使用<code>mutable</code>将可变的部分定义为“一定不是常量”。</p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>编程</category>
+      </categories>
+      <tags>
+        <tag>C++</tag>
+        <tag>面试</tag>
+        <tag>智能指针</tag>
+        <tag>显式类型转换</tag>
       </tags>
   </entry>
 </search>
