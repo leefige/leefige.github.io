@@ -3300,4 +3300,99 @@ gdb 也不会段错误。</p>
         <tag>显式类型转换</tag>
       </tags>
   </entry>
+  <entry>
+    <title>CXX11 ABI 与 STL string Copy-on-Write 机制</title>
+    <url>/2024/12/19/66a23abde6ed/</url>
+    <content><![CDATA[<p>GCC 在 5.1 之后的 <code>libstdc++</code> 中引入了支持 C++11 新标准的
+ABI，用宏 <code>_GLIBCXX_USE_CXX11_ABI</code> 控制。 是否使用 CXX11 ABI
+有两个主要区别，其一是 <code>std::string</code> 实现机制禁止
+Copy-on-Write，其二是 <code>std::list</code> 获取大小的时间复杂度
+[1]。</p>
+<p>本文主要讨论 <code>std::string</code> 机制的变化和原因。</p>
+<span id="more"></span>
+<h2 id="从-copy-on-write-到-eager-copy">从 Copy-on-Write 到
+eager-copy</h2>
+<p>Copy-on-Write (COW) 机制，学过 OS
+的人应该都比较了解，这里不赘述了。</p>
+<p>C++11 之前，对于 STL string
+拷贝构造的实现方式没有做规定，一些编译器选择了 eager-copy
+方式，即每构造一个新的
+string，都重新分配一块新内存，直接将旧内存内容拷贝到新空间，如 clang 和
+MSVC. 而 GCC 则是选择了 COW 或称 lazy-copy 机制，拷贝构造 string
+时共享原 string 数据内存区域，通过引用计数维护共享，当有必要
+<em>unshare</em> 时才分配新内存空间 [6,7]。</p>
+<p>C++11 明确规定了 STL sting 禁止使用 COW 机制，从标准出发（21.4.1
+p6），主要是 iterator/reference invalidation 方面的原因 [4]：</p>
+<blockquote>
+<p>— as an argument to any standard library function taking a reference
+to non-const basic_string as an argument.</p>
+<p>— Calling non-const member functions, except operator[], at, front,
+back, begin, rbegin, end, and rend.</p>
+</blockquote>
+<p>标准指出，即使 non-const <code>operator[]</code>
+也不应该导致迭代器失效，但 COW 机制下，对于一个被共享内存的 string，调用
+non-const <code>operator[]</code> 一定会导致
+unshare，而底层数据的修改（重新分配）将会无效化在这之前获取的迭代器或引用，这显然和
+C++11 标准冲突。</p>
+<p>因此，GCC 引入 CXX11 ABI，在 5.1 之后默认开启，将使用符合 C++11
+标准的 eager-copy STL string.</p>
+<p>下面这个经典例子可以更好地说明这个现象。</p>
+<h2 id="一个经典例子">一个经典例子</h2>
+<p>这个例子的变体在 [4-7]
+中均有出现，下面是笔者略加修改后实际测试过的代码。 需要用 GCC
+编译，加编译选项 <code>-D_GLIBCXX_USE_CXX11_ABI=0</code> 禁用 CXX11
+ABI，理论上将使用 COW 实现的 STL string. 但现实中，在 GCC &lt;= 8.3.1
+上测试成功，在 GCC &gt;= 11 上并不会使用 COW
+机制，测试时请注意版本。</p>
+<p>首先，这段代码在 scope 中拷贝 <code>s</code> 构造了
+<code>s2</code>（也可以想象成在另一个线程中，事实上真的放在另一个线程上也会有同样的效果），
+随后调用 non-const <code>operator[]</code>（<code>s</code> 不是 const
+变量，<code>s[0]</code> 视为 non-const
+版本），虽然事实上什么都没有修改， 但这个调用本身将导致
+unshare，<code>s</code> 会指向一块新的内存。 这将导致之前获取的
+<code>s</code> 的“迭代器” <code>const char *p = s.data()</code> 失效成为
+dangling pointer，输出结果出现问题。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstdio&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> defined(__GNUC__)</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;GCC %d.%d.%d\n&quot;</span>, __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">    std::string s = <span class="string">&quot;str&quot;</span>;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *p = s.<span class="built_in">data</span>();</span><br><span class="line">    <span class="comment">// this can be in another thread</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="function">std::string <span class="title">s2</span><span class="params">(s)</span></span>;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s2.data(): 0x%x\n&quot;</span>, s2.<span class="built_in">data</span>());</span><br><span class="line">        s[<span class="number">0</span>];</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s2.data(): 0x%x\n&quot;</span>, s2.<span class="built_in">data</span>());</span><br><span class="line">    &#125;</span><br><span class="line">    std::string a = <span class="string">&quot;hello world&quot;</span>;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;p: %s\n&quot;</span>, p);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;s: %s\n&quot;</span>, s.<span class="built_in">c_str</span>());</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GCC 8.3.1</span><br><span class="line">s.data(): 0x1dc3e88</span><br><span class="line">s.data(): 0x1dc3e88</span><br><span class="line">s2.data(): 0x1dc3e88</span><br><span class="line">s.data(): 0x1dc3eb8</span><br><span class="line">s2.data(): 0x1dc3e88</span><br><span class="line">p: hello world</span><br><span class="line">s: str</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GCC 14.2.0</span><br><span class="line">s.data(): 0x889b2438</span><br><span class="line">s.data(): 0x889b2438</span><br><span class="line">s2.data(): 0x889b2468</span><br><span class="line">s.data(): 0x889b2438</span><br><span class="line">s2.data(): 0x889b2468</span><br><span class="line">p: str</span><br><span class="line">s: str</span><br></pre></td></tr></table></figure>
+<p>事实上，STL string 的 <code>operator[]</code> 还提供了 const 版本
+[2]，我们将调用者 <code>s</code> 变成一个常量引用，就可以调用 const
+版本。 这一调用不会导致 unshare，也不会导致 <code>p</code> 无效化。</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cstdio&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> defined(__GNUC__)</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;GCC %d.%d.%d\n&quot;</span>, __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">    std::string s = <span class="string">&quot;str&quot;</span>;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *p = s.<span class="built_in">data</span>();</span><br><span class="line">    <span class="comment">// this can be in another thread</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="function">std::string <span class="title">s2</span><span class="params">(s)</span></span>;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s2.data(): 0x%x\n&quot;</span>, s2.<span class="built_in">data</span>());</span><br><span class="line">        <span class="comment">// explicitly invoke operator[](...) const</span></span><br><span class="line">        ((<span class="type">const</span> std::string &amp;)s)[<span class="number">0</span>];</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s.data(): 0x%x\n&quot;</span>, s.<span class="built_in">data</span>());</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;s2.data(): 0x%x\n&quot;</span>, s2.<span class="built_in">data</span>());</span><br><span class="line">    &#125;</span><br><span class="line">    std::string a = <span class="string">&quot;hello world&quot;</span>;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;p: %s\n&quot;</span>, p);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;s: %s\n&quot;</span>, s.<span class="built_in">c_str</span>());</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GCC 8.3.1</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s2.data(): 0x1f00e88</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s2.data(): 0x1f00e88</span><br><span class="line">p: str</span><br><span class="line">s: str</span><br></pre></td></tr></table></figure>
+<h2 id="关于为什么放弃-cow-的进一步探讨">关于为什么放弃 COW
+的进一步探讨</h2>
+<p>未完待续 :-)</p>
+<h2 id="references">References</h2>
+<p>[1] <a
+href="https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html">Dual
+ABI - The GNU C++ Library</a></p>
+<p>[2] <a
+href="https://en.cppreference.com/w/cpp/string/basic_string/operator_at">std::basic_string&lt;CharT,Traits,Allocator&gt;::operator[]
+- C++ reference</a></p>
+<p>[3] <a
+href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2534.html">Concurrency
+Modifications to Basic String</a></p>
+<p>[4] <a
+href="https://stackoverflow.com/questions/12199710/legality-of-cow-stdstring-implementation-in-c11">Legality
+of COW std::string implementation in C++11</a></p>
+<p>[5] <a
+href="https://selfboot.cn/en/2024/01/17/c++_string_cow/">Unexpected C++
+String Modification Caused by COW (Copy-On-Write)</a></p>
+<p>[6] <a
+href="https://blog.csdn.net/ithiker/article/details/126447778">GCC编译宏_GLIBCXX_USE_CXX11_ABI背景分析和实现原理</a></p>
+<p>[7] <a
+href="https://www.cnblogs.com/promise6522/archive/2012/03/22/2412686.html">std::string的Copy-on-Write：不如想象中美好</a></p>
+]]></content>
+      <categories>
+        <category>编程</category>
+      </categories>
+      <tags>
+        <tag>C++</tag>
+        <tag>C++11</tag>
+        <tag>GCC</tag>
+        <tag>Copy-on-Write</tag>
+        <tag>编译</tag>
+      </tags>
+  </entry>
 </search>
