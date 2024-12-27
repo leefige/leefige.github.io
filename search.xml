@@ -3362,7 +3362,45 @@ dangling pointer，输出结果出现问题。</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GCC 8.3.1</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s2.data(): 0x1f00e88</span><br><span class="line">s.data(): 0x1f00e88</span><br><span class="line">s2.data(): 0x1f00e88</span><br><span class="line">p: str</span><br><span class="line">s: str</span><br></pre></td></tr></table></figure>
 <h2 id="关于为什么放弃-cow-的进一步探讨">关于为什么放弃 COW
 的进一步探讨</h2>
-<p>未完待续 :-)</p>
+<p>首先，从上面的例子可以看出，对于一个不用 const 约束的
+string，也是默认的情况，类似 <code>at</code> 和 <code>operator[]</code>
+这样直观上很可能是只读的操作，由于 C++ 设计上这些函数的非 const
+版本支持修改，因此编译器最安全的做法是对这类调用都执行
+unshare，而且唯一合理的做法是为调用这些函数的 string
+对象进行重分配。</p>
+<p>类似上面的例子，<code>s</code> 先被构造，且获取了其迭代器/指针
+<code>p</code>，之后又用 <code>s</code> 构造了
+<code>s2</code>，但之后再次对 <code>s</code>
+调用一个直觉上只读但事实上导致 unshare 的函数，就会无效化已获取的
+<code>s</code> 的迭代器。这种行为本身是反直觉的。 因此，C++11
+重新规定，即使 non-const <code>operator[]</code>
+也不应该导致迭代器失效。</p>
+<p>其次，在多线程视角下，这可能会带来性能负担。比如，上面的例子若将大括号
+scope 放在另一个线程 2 中，进一步，假设初始线程 1 只访问
+<code>s</code>，线程 2 只访问
+<code>s2</code>，这本该是逻辑上独立、从并行角度看互不冲突的情况。 但由于
+COW 机制，任一线程第一次 unshare
+操作都会触法重新分配，而这些线程实质上在共享 <code>s</code>
+初始分配的内存区域，因此这种重新分配必须伴随原子操作和加锁。
+如果有大量线程共享同一个 string 的内存空间，任何线程内的第一次 unshare
+操作都会非常昂贵，并引入原子操作的其他副作用，如阻止乱序执行、cache
+invalidation 等。</p>
+<p>还有一个比较重要的多线程场景，如多个线程同时用 non-const
+<code>operator[]</code> 操作同一个 string
+的不同区段，也就是一般情况下我们期望的 "container thread safety"
+[3]：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">pragma</span> omp parallel for</span></span><br><span class="line"><span class="keyword">for</span>( <span class="type">size_t</span> i = <span class="number">0</span>, n = v.<span class="built_in">size</span>(); i &lt; n; ++i ) &#123;</span><br><span class="line">    v[i] = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果 <code>v</code> 是 COW 机制的 STL string，则必须在
+<code>#pragma</code> 之前对 <code>v</code> 做必要的 unshare，如
+<code>v[0]</code>，否则某个线程第一次实际调用 <code>operator[]</code>
+导致 unshare 将使此前所有线程已经取得的 <code>v</code>
+的迭代器无效。</p>
+<p>对于 GCC 这样采用 COW 的编译器，C++11 的规定导致必须放弃 COW
+以满足迭代器有效性要求。 这就走向了 eager-copy
+机制，目前编译器在这种机制下常用的优化是小字符串优化（small string
+optimization, SSO），比如将很短的字符串直接放在栈空间上（本质是直接放在
+string 结构体内），而非将 data 单独分配在堆内存上，这里就不具体展开了
+[5]。</p>
 <h2 id="references">References</h2>
 <p>[1] <a
 href="https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html">Dual
